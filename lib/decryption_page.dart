@@ -12,7 +12,6 @@ class DecryptionPage extends StatefulWidget {
   final String? initialCiphertext;
   final String? senderJid;
 
-  // Resolved contact info from Inbox (optional)
   final String? senderUsername;
   final String? senderPhone;
   final String? senderPublicKeyBase64;
@@ -68,8 +67,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
   }
 
   void _prefill() {
-    if (widget.initialCiphertext != null &&
-        widget.initialCiphertext!.trim().isNotEmpty) {
+    if ((widget.initialCiphertext ?? '').trim().isNotEmpty) {
       _cipherController.text = widget.initialCiphertext!.trim();
     }
 
@@ -108,15 +106,83 @@ class _DecryptionPageState extends State<DecryptionPage> {
     return jid;
   }
 
+  // ---------- validation helpers ----------
+  bool _isProbablyBase64(String s) {
+    final t = s.trim();
+    if (t.isEmpty) return false;
+    return RegExp(r'^[A-Za-z0-9+/]+={0,2}$').hasMatch(t);
+  }
+
+  bool _isBase64OfLen(String s, int bytesLen) {
+    try {
+      if (!_isProbablyBase64(s)) return false;
+      final b = base64Decode(s.trim());
+      return b.length == bytesLen;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Map<String, dynamic>? _parseCipherPayload(String cipher) {
+    try {
+      if (!_isProbablyBase64(cipher)) return null;
+      final decoded = utf8.decode(base64Decode(cipher.trim()));
+      final m = jsonDecode(decoded);
+      if (m is Map<String, dynamic>) return m;
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String? _validateCipherShape(Map<String, dynamic> m) {
+    final v = m['v'];
+    final iv = (m['iv'] ?? '').toString();
+    final ct = (m['ciphertext'] ?? '').toString();
+    final tag = (m['tag'] ?? '').toString();
+
+    if (v != 1) return 'Unsupported payload version (v must be 1).';
+    if (iv.isEmpty || ct.isEmpty || tag.isEmpty) {
+      return 'Cipher payload missing iv/ciphertext/tag.';
+    }
+    if (!_isBase64OfLen(iv, 12)) return 'Invalid IV (expected base64 12 bytes).';
+    if (!_isProbablyBase64(ct)) return 'Invalid ciphertext (not base64).';
+    if (!_isBase64OfLen(tag, 16)) return 'Invalid tag (expected base64 16 bytes).';
+    return null;
+  }
+
+  Future<bool> _confirmProceedUnverified() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Unverified / Old key'),
+            content: const Text(
+              'This key is marked OLD/EXPIRED or not verified.\n\n'
+              'You can proceed, but only if you trust this public key really belongs '
+              'to the sender (otherwise you may decrypt a wrong message/key).',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Proceed'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   Future<void> _loadMyPrivateKey() async {
     try {
       final stored = await _storage.read(key: 'wa_shield_x25519_private_key');
       _myPrivateKeyBase64 = (stored ?? '').trim();
 
       if (_myPrivateKeyBase64.isEmpty && mounted) {
-        _showError(
-          'Please generate a key pair first in the Key Generation page',
-        );
+        _showError('Please generate a key pair first in the Key Generation page');
       }
       if (mounted) setState(() {});
     } catch (e) {
@@ -124,7 +190,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
       if (mounted) _showError('Error loading private key: $e');
     }
 
-    // if sender pub missing, try resolve from storage by senderJid (optional)
+    // if sender pub missing, try resolve from storage by senderJid
     if (_senderPubController.text.trim().isEmpty &&
         (widget.senderJid ?? '').isNotEmpty) {
       await _tryAutoResolveSenderFromStorage(widget.senderJid!);
@@ -151,8 +217,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
               ? Map<String, dynamic>.from(data['payload'])
               : <String, dynamic>{};
 
-          final storedPhone = (data['phone'] ?? payload['phone'] ?? '')
-              .toString();
+          final storedPhone = (data['phone'] ?? payload['p'] ?? '').toString();
           final storedDigits = _digitsOnly(storedPhone);
           if (storedDigits.isEmpty) continue;
 
@@ -172,9 +237,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
             bestSavedAt = savedAt;
             best = data;
           }
-        } catch (_) {
-          continue;
-        }
+        } catch (_) {}
       }
 
       if (best == null) return;
@@ -183,27 +246,29 @@ class _DecryptionPageState extends State<DecryptionPage> {
           ? Map<String, dynamic>.from(best['payload'])
           : <String, dynamic>{};
 
-      final username = (best['username'] ?? payload['username'] ?? '')
+      final username = (best['username'] ?? payload['u'] ?? '').toString().trim();
+      final phone = (best['phone'] ?? payload['p'] ?? '').toString().trim();
+
+      final pub = (payload['x'] ??
+              payload['x25519PublicKey'] ??
+              best['x25519PublicKey'] ??
+              best['publicKey'] ??
+              '')
           .toString()
           .trim();
-      final phone = (best['phone'] ?? payload['phone'] ?? '').toString().trim();
-      final pub = (payload['x25519PublicKey'] ?? best['publicKey'] ?? '')
-          .toString()
-          .trim();
-      final fp = (payload['fingerprint'] ?? best['fingerprint'] ?? '')
-          .toString()
-          .trim();
+
+      final fp = (best['fingerprint'] ?? payload['fp'] ?? '').toString().trim();
 
       if (pub.isNotEmpty) {
         setState(() {
           _senderPubController.text = pub;
           _senderName = username.isNotEmpty ? username : _senderName;
-          _senderPhone = _digitsOnly(phone).isNotEmpty
-              ? _digitsOnly(phone)
-              : _senderPhone;
+          _senderPhone = _digitsOnly(phone).isNotEmpty ? _digitsOnly(phone) : _senderPhone;
           _senderFingerprint = fp;
+
+          // auto-resolve means "known contact", treat as active unless you track rotation here
           _senderKeyActive = true;
-          _senderKeyExpired = false; // unknown here
+          _senderKeyExpired = false;
         });
       }
     } catch (_) {
@@ -246,35 +311,63 @@ class _DecryptionPageState extends State<DecryptionPage> {
     setState(() => _busy = true);
 
     try {
+      // 1) My private key exists + format
       if (_myPrivateKeyBase64.trim().isEmpty) {
         _showError('Private key not loaded. Generate keys first.');
         return;
       }
+      if (!_isBase64OfLen(_myPrivateKeyBase64, 32)) {
+        _showError('Your private key is invalid (expected base64 32 bytes). Re-generate keys.');
+        return;
+      }
 
+      // 2) Sender public key format
       final senderPub = _senderPubController.text.trim();
       if (senderPub.isEmpty) {
         _showError('Sender public key is empty.');
         return;
       }
+      if (!_isBase64OfLen(senderPub, 32)) {
+        _showError('Sender public key invalid. Expected Base64 of 32 bytes (X25519).');
+        return;
+      }
 
+      // 3) Ciphertext format
       final cipher = _cipherController.text.trim();
       if (cipher.isEmpty) {
         _showError('Encrypted payload is empty.');
         return;
       }
 
-      // Optional stricter UX rule:
-      // If you want to block old/expired contact keys:
-      if (_senderKeyExpired ||
-          (!_senderKeyActive && _senderPubController.text.isNotEmpty)) {
+      final parsed = _parseCipherPayload(cipher);
+      if (parsed == null) {
         _showError(
-          'Sender key is OLD/EXPIRED. Re-scan latest QR before decrypting.',
+          'Ciphertext format invalid.\nExpected Base64(JSON) with fields: {v, iv, ciphertext, tag}.',
         );
         return;
       }
 
+      final shapeErr = _validateCipherShape(parsed);
+      if (shapeErr != null) {
+        _showError('Cipher payload invalid: $shapeErr');
+        return;
+      }
+
+      // 4) OLD/EXPIRED handling: warn instead of hard block
+      final isUnverified = (_senderKeyExpired || !_senderKeyActive);
+      if (isUnverified) {
+        final proceed = await _confirmProceedUnverified();
+        if (!proceed) return;
+      }
+
+      // 5) Decrypt
       final sharedSecretBase64 =
           await CryptoManager.computeSharedSecretAesKeyBase64(senderPub);
+
+      if (!_isBase64OfLen(sharedSecretBase64, 32)) {
+        _showError('Derived AES key invalid (expected 32 bytes).');
+        return;
+      }
 
       final plaintext = await CryptoManager.decryptAES256GCM(
         cipher,
@@ -283,11 +376,22 @@ class _DecryptionPageState extends State<DecryptionPage> {
       );
 
       setState(() {
-        _outputLabel = 'Plaintext';
+        _outputLabel = isUnverified ? 'Plaintext (Unverified)' : 'Plaintext';
         _outputText = plaintext;
       });
     } catch (e) {
-      _showError(e.toString()); // shows AUTH FAIL / invalid payload messages
+      final msg = e.toString();
+      if (msg.contains('AUTH FAIL')) {
+        _showError(
+          'AUTH FAIL (tampered / wrong key / wrong account).\n\n'
+          'Fix:\n'
+          '• Make sure you are using the receiver account private key\n'
+          '• Re-scan sender QR (latest)\n'
+          '• Ensure message AAD matches (WA_SHIELD_MSG_V1)',
+        );
+        return;
+      }
+      _showError('Decryption failed: $msg');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -299,12 +403,8 @@ class _DecryptionPageState extends State<DecryptionPage> {
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
 
-        final primaryColor = isDark
-            ? const Color(0xFF8B9D3F)
-            : const Color(0xFF6B8E23);
-        final pageBg = isDark
-            ? const Color(0xFF1A1A1A)
-            : const Color(0xFFEFF8EF);
+        final primaryColor = isDark ? const Color(0xFF8B9D3F) : const Color(0xFF6B8E23);
+        final pageBg = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFF8EF);
         final cardBg = isDark ? const Color(0xFF2C2C2C) : Colors.white;
         final textColor = isDark ? Colors.white : Colors.black87;
         final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
@@ -312,14 +412,14 @@ class _DecryptionPageState extends State<DecryptionPage> {
         final statusText = (_senderPubController.text.trim().isEmpty)
             ? 'UNKNOWN'
             : (_senderKeyExpired || !_senderKeyActive)
-            ? 'OLD/EXPIRED'
-            : 'VERIFIED';
+                ? 'OLD/EXPIRED'
+                : 'VERIFIED';
 
         final statusColor = (_senderPubController.text.trim().isEmpty)
             ? Colors.grey
             : (_senderKeyExpired || !_senderKeyActive)
-            ? Colors.red
-            : primaryColor;
+                ? Colors.red
+                : primaryColor;
 
         return Scaffold(
           backgroundColor: pageBg,
@@ -330,9 +430,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
             title: Text(
               'Decrypt',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: textColor,
-              ),
+                    fontWeight: FontWeight.w800,
+                    color: textColor,
+                  ),
             ),
           ),
           bottomNavigationBar: SafeArea(
@@ -351,22 +451,14 @@ class _DecryptionPageState extends State<DecryptionPage> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                             )
                           : const Icon(Icons.lock_open, size: 20),
-                      label: const Text(
-                        'Decrypt',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
+                      label: const Text('Decrypt', style: TextStyle(fontWeight: FontWeight.w800)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
                     ),
@@ -380,20 +472,13 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       icon: const Icon(Icons.clear_all, size: 20),
                       label: Text(
                         'Clear',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                        ),
+                        style: TextStyle(fontWeight: FontWeight.w800, color: textColor),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.18)
-                              : primaryColor.withOpacity(0.35),
+                          color: isDark ? Colors.white.withOpacity(0.18) : primaryColor.withOpacity(0.35),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         backgroundColor: cardBg,
                       ),
                     ),
@@ -438,9 +523,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _senderPhone.isNotEmpty
-                                  ? _senderPhone
-                                  : 'No phone detected',
+                              _senderPhone.isNotEmpty ? _senderPhone : 'No phone detected',
                               style: TextStyle(
                                 color: textColor.withOpacity(0.7),
                                 fontWeight: FontWeight.w600,
@@ -463,10 +546,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       ),
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
                           color: statusColor.withOpacity(0.14),
@@ -483,7 +563,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 18),
                 _sectionLabel('Ciphertext', textColor),
                 const SizedBox(height: 8),
@@ -496,7 +575,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
                   hintText: 'Paste encrypted payload here...',
                   maxLines: 5,
                 ),
-
                 const SizedBox(height: 18),
                 _sectionLabel('Sender Public Key', textColor),
                 const SizedBox(height: 8),
@@ -509,9 +587,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
                   hintText: 'Paste sender x25519 public key...',
                   maxLines: 2,
                 ),
-
                 const SizedBox(height: 18),
-
                 if (_outputText.isNotEmpty) ...[
                   _sectionLabel(_outputLabel, textColor),
                   const SizedBox(height: 8),
@@ -527,8 +603,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       children: [
                         SelectableText(
                           _outputText,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                 color: textColor,
                                 fontFamily: 'monospace',
                                 height: 1.35,
@@ -544,9 +619,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryColor,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                               elevation: 0,
                             ),
                           ),
@@ -556,7 +629,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
                   ),
                   const SizedBox(height: 18),
                 ],
-
                 const SizedBox(height: 120),
               ],
             ),

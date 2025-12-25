@@ -223,7 +223,7 @@ class EncryptionFlow {
       sharedSecretBase64,
       aad: kMessageAad,
     );
-
+ 
     return encryptedPayload;
   }
 

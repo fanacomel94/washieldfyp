@@ -8,6 +8,9 @@ import '../inbox_page.dart';
 import '../key_generation.dart';
 import '../key_scanner.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/bottom_nav_bar.dart';
+import 'contact_list_page.dart';
+import 'settings_page.dart';
 
 // If you want to use your bottom nav later:
 // import 'UI/bottom_navigate.dart';
@@ -58,9 +61,7 @@ class HomePage extends StatelessWidget {
                           children: [
                             Text(
                               'WAShield',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
+                              style: Theme.of(context).textTheme.headlineMedium
                                   ?.copyWith(
                                     fontWeight: FontWeight.w800,
                                     color: cs.primary,
@@ -69,9 +70,7 @@ class HomePage extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               'Encrypt First. Send Securely',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
+                              style: Theme.of(context).textTheme.bodyMedium
                                   ?.copyWith(
                                     color: isDark
                                         ? Colors.grey[400]
@@ -173,9 +172,9 @@ class HomePage extends StatelessWidget {
                     Text(
                       'Message Security',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: isDark ? Colors.grey[200] : Colors.grey[900],
-                          ),
+                        fontWeight: FontWeight.w700,
+                        color: isDark ? Colors.grey[200] : Colors.grey[900],
+                      ),
                     ),
                     const SizedBox(height: 14),
 
@@ -249,6 +248,22 @@ class HomePage extends StatelessWidget {
                 ),
               ),
             ),
+          ),
+          bottomNavigationBar: BottomNavBar(
+            currentIndex: 0,
+            onTap: (index) {
+              if (index == 1) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ContactListPage()),
+                );
+              } else if (index == 2) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SettingsPage()),
+                );
+              }
+            },
           ),
         );
       },
@@ -367,9 +382,9 @@ class _Shortcut extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ],
         ),
@@ -430,9 +445,9 @@ class _BigAction extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: fg,
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: fg,
+                ),
               ),
             ],
           ),
@@ -478,17 +493,17 @@ class _InfoCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Text(
               subtitle,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: isDark ? Colors.grey[400] : Colors.grey[700],
-                    height: 1.3,
-                  ),
+                color: isDark ? Colors.grey[400] : Colors.grey[700],
+                height: 1.3,
+              ),
             ),
           ],
         ),
@@ -530,17 +545,17 @@ class _BottomBanner extends StatelessWidget {
               children: [
                 Text(
                   'Secure by Design',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w900,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Scan keys, generate your keys, then encrypt before sending.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: isDark ? Colors.grey[300] : Colors.grey[700],
-                        height: 1.35,
-                      ),
+                    color: isDark ? Colors.grey[300] : Colors.grey[700],
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),

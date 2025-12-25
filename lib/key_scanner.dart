@@ -215,45 +215,62 @@ class _KeyScannerPageState extends State<KeyScannerPage> {
     });
   }
 
-  Future<void> _saveContact() async {
-    if (_contact == null) return;
+Future<void> _saveContact() async {
+  if (_contact == null) return;
 
-    setState(() => _saving = true);
+  setState(() => _saving = true);
 
-    try {
-      final payload = _contact!.fullPayload;
-      final userId = _contact!.userId;
+  try {
+    final payload = _contact!.fullPayload;
+    final userId = _contact!.userId;
 
-      final data = jsonEncode({
-        'id': userId,
-        'username': _contact!.username,
-        'phone': _contact!.phone,
+    // ✅ Normalize phone for matching with WhatsApp JID
+    final phoneDigits = _contact!.phone.replaceAll(RegExp(r'\D'), '');
 
-        // ✅ Save BOTH keys (important)
-        'x25519PublicKey': _contact!.x25519PublicKey,
-        'ed25519PublicKey': _contact!.ed25519PublicKey,
-
-        'payload': payload,
-        'savedAt': DateTime.now().toIso8601String(),
-      });
-
-      await _secureStorage.write(key: 'wa_shield_contact_$userId', value: data);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Contact saved to secure storage')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save contact: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    // ✅ Convert compact exp(epoch seconds) -> ISO string (optional but helpful)
+    DateTime? expiresAtUtc;
+    final expRaw = payload['exp'];
+    final expSec = (expRaw is int) ? expRaw : int.tryParse(expRaw.toString());
+    if (expSec != null && expSec > 0) {
+      expiresAtUtc = DateTime.fromMillisecondsSinceEpoch(expSec * 1000, isUtc: true);
     }
+
+    final data = jsonEncode({
+      'id': userId,
+      'username': _contact!.username,
+      'phone': phoneDigits,
+
+      // keys (top level)
+      'x25519PublicKey': _contact!.x25519PublicKey,
+      'ed25519PublicKey': _contact!.ed25519PublicKey,
+
+      // helpful fields for Inbox/Decrypt validation
+      'fingerprint': '', // optional if you implement later
+      'expiresAt': expiresAtUtc?.toIso8601String(), // ✅ optional
+      'savedAt': DateTime.now().toIso8601String(),
+
+      // original compact signed payload
+      'payload': payload,
+    });
+
+    await _secureStorage.write(key: 'wa_shield_contact_$userId', value: data);
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contact saved to secure storage')),
+      );
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save contact: $e')),
+      );
+    }
+  } finally {
+    if (mounted) setState(() => _saving = false);
   }
+}
+
 
   void _resetAndScanAgain() {
     setState(() {

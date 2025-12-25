@@ -25,7 +25,6 @@ class _InboxPageState extends State<InboxPage> {
 
   final int _clientId = 1;
 
-  /// Cache contacts so we don’t read storage repeatedly for each tile
   List<_ContactLite> _contactsCache = [];
   bool _contactsLoaded = false;
 
@@ -40,6 +39,21 @@ class _InboxPageState extends State<InboxPage> {
     await _fetchMessages();
   }
 
+  String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
+
+  String _formatJidToPhone(String jid) {
+    if (jid.contains('@')) return jid.split('@')[0];
+    return jid;
+  }
+
+  DateTime? _parseExpiresAtFromCompactPayload(Map<String, dynamic> payload) {
+    // compact QR uses exp as epoch seconds (UTC)
+    final expRaw = payload['exp'];
+    final expSec = (expRaw is int) ? expRaw : int.tryParse(expRaw?.toString() ?? '');
+    if (expSec == null || expSec <= 0) return null;
+    return DateTime.fromMillisecondsSinceEpoch(expSec * 1000, isUtc: true);
+  }
+
   Future<void> _loadContactsCache() async {
     try {
       final all = await _storage.readAll();
@@ -52,108 +66,110 @@ class _InboxPageState extends State<InboxPage> {
       for (final e in entries) {
         try {
           final data = jsonDecode(e.value) as Map<String, dynamic>;
-
           final payload = (data['payload'] is Map)
               ? Map<String, dynamic>.from(data['payload'])
               : <String, dynamic>{};
 
-          final username =
-              (data['username'] ?? payload['username'] ?? '').toString().trim();
-          final phone = (data['phone'] ?? payload['phone'] ?? '').toString().trim();
-
-          // Prefer x25519PublicKey from payload, fallback to top-level publicKey
-          final publicKey = (payload['x25519PublicKey'] ?? data['publicKey'] ?? '')
+          final username = (data['username'] ?? payload['u'] ?? '')
               .toString()
               .trim();
 
-          final fingerprint = (payload['fingerprint'] ?? data['fingerprint'] ?? '')
+          final phone = (data['phone'] ?? payload['p'] ?? '')
+              .toString()
+              .trim();
+
+          final phoneDigits = _digitsOnly(phone);
+          if (phoneDigits.isEmpty) continue;
+
+          // ✅ Match KeyScanner + compact QR
+          final publicKey = (payload['x'] ??
+                  payload['x25519PublicKey'] ??
+                  data['x25519PublicKey'] ??
+                  data['publicKey'] ??
+                  '')
+              .toString()
+              .trim();
+
+          final fingerprint = (data['fingerprint'] ?? payload['fp'] ?? '')
               .toString()
               .trim();
 
           final savedAtStr = (data['savedAt'] ?? '').toString();
-          final issuedAtStr = (payload['issuedAt'] ?? '').toString();
-          final expiresAtStr = (payload['expiresAt'] ?? '').toString();
-
           DateTime savedAt = DateTime.fromMillisecondsSinceEpoch(0);
-          DateTime? issuedAt;
-          DateTime? expiresAt;
-
           try {
             if (savedAtStr.isNotEmpty) savedAt = DateTime.parse(savedAtStr);
           } catch (_) {}
-          try {
-            if (issuedAtStr.isNotEmpty) issuedAt = DateTime.parse(issuedAtStr);
-          } catch (_) {}
-          try {
-            if (expiresAtStr.isNotEmpty) expiresAt = DateTime.parse(expiresAtStr);
-          } catch (_) {}
+
+          // ✅ expiry from payload exp OR top-level expiresAt
+          DateTime? expiresAtUtc;
+          if (payload.isNotEmpty) {
+            expiresAtUtc = _parseExpiresAtFromCompactPayload(payload);
+          }
+          if (expiresAtUtc == null) {
+            final expIso = (data['expiresAt'] ?? '').toString();
+            try {
+              if (expIso.isNotEmpty) expiresAtUtc = DateTime.parse(expIso).toUtc();
+            } catch (_) {}
+          }
 
           raw.add({
             'storageKey': e.key,
             'username': username,
-            'phone': phone,
+            'phoneDigits': phoneDigits,
             'publicKey': publicKey,
             'fingerprint': fingerprint,
             'savedAt': savedAt,
-            'issuedAt': issuedAt,
-            'expiresAt': expiresAt,
+            'expiresAtUtc': expiresAtUtc,
           });
         } catch (_) {
           // ignore invalid JSON
         }
       }
 
-      // Determine newest key per phone (best for WA sender matching)
+      // newest key per phoneDigits
       final Map<String, Map<String, dynamic>> newestByPhone = {};
       for (final item in raw) {
-        final phoneDigits = _digitsOnly(item['phone']?.toString() ?? '');
-        if (phoneDigits.isEmpty) continue;
-
-        final cur = newestByPhone[phoneDigits];
+        final d = item['phoneDigits'] as String;
+        final cur = newestByPhone[d];
         if (cur == null) {
-          newestByPhone[phoneDigits] = item;
+          newestByPhone[d] = item;
         } else {
           final a = cur['savedAt'] as DateTime;
           final b = item['savedAt'] as DateTime;
-          if (b.isAfter(a)) newestByPhone[phoneDigits] = item;
+          if (b.isAfter(a)) newestByPhone[d] = item;
         }
       }
 
-      final now = DateTime.now();
+      final nowUtc = DateTime.now().toUtc();
       final contacts = <_ContactLite>[];
 
       for (final item in raw) {
-        final phoneDigits = _digitsOnly(item['phone']?.toString() ?? '');
-        if (phoneDigits.isEmpty) continue;
-
-        final newest = newestByPhone[phoneDigits];
-        final bool isActive =
+        final d = item['phoneDigits'] as String;
+        final newest = newestByPhone[d];
+        final isActive =
             newest != null && newest['storageKey'] == item['storageKey'];
 
-        final expiresAt = item['expiresAt'] as DateTime?;
-        final bool timeExpired = (expiresAt != null) && expiresAt.isBefore(now);
+        final expiresAtUtc = item['expiresAtUtc'] as DateTime?;
+        final timeExpired = expiresAtUtc != null && expiresAtUtc.isBefore(nowUtc);
 
-        final bool rotationExpired = !isActive; // older record for same phone
-        final bool isExpired = timeExpired || rotationExpired;
+        final rotationExpired = !isActive;
+        final isExpired = timeExpired || rotationExpired;
 
         contacts.add(
           _ContactLite(
             storageKey: item['storageKey'] as String,
             username: (item['username'] ?? '').toString(),
-            phone: (item['phone'] ?? '').toString(),
-            phoneDigits: phoneDigits,
+            phoneDigits: d,
             publicKeyBase64: (item['publicKey'] ?? '').toString(),
             fingerprint: (item['fingerprint'] ?? '').toString(),
             savedAt: item['savedAt'] as DateTime,
-            issuedAt: item['issuedAt'] as DateTime?,
-            expiresAt: expiresAt,
+            expiresAtUtc: expiresAtUtc,
             isActive: isActive,
             isExpired: isExpired,
           ),
         );
       }
 
-      // Sort active first, then newest
       contacts.sort((a, b) {
         if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
         if (a.isExpired != b.isExpired) return a.isExpired ? 1 : -1;
@@ -199,14 +215,6 @@ class _InboxPageState extends State<InboxPage> {
     }
   }
 
-  String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
-
-  String _formatJidToPhone(String jid) {
-    // 60123456789@c.us -> 60123456789
-    if (jid.contains('@')) return jid.split('@')[0];
-    return jid;
-  }
-
   String _previewCiphertext(String body) {
     if (body.length <= 44) return body;
     return '${body.substring(0, 44)}...';
@@ -215,14 +223,11 @@ class _InboxPageState extends State<InboxPage> {
   _ContactLite? _resolveSenderContact(String senderJid) {
     if (!_contactsLoaded || _contactsCache.isEmpty) return null;
 
-    final phone = _formatJidToPhone(senderJid);
-    final digits = _digitsOnly(phone);
+    final digits = _digitsOnly(_formatJidToPhone(senderJid));
     if (digits.isEmpty) return null;
 
-    // Prefer exact phoneDigits match
     final exact = _contactsCache.where((c) => c.phoneDigits == digits).toList();
     if (exact.isNotEmpty) {
-      // Choose active first, then newest savedAt
       exact.sort((a, b) {
         if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
         return b.savedAt.compareTo(a.savedAt);
@@ -230,10 +235,10 @@ class _InboxPageState extends State<InboxPage> {
       return exact.first;
     }
 
-    // Fallback: partial match (rare)
     final partial = _contactsCache.where((c) {
       return digits.contains(c.phoneDigits) || c.phoneDigits.contains(digits);
     }).toList();
+
     if (partial.isNotEmpty) {
       partial.sort((a, b) {
         if (a.isActive != b.isActive) return a.isActive ? -1 : 1;
@@ -258,7 +263,7 @@ class _InboxPageState extends State<InboxPage> {
           initialCiphertext: ciphertext,
           senderJid: senderJid,
           senderUsername: contact?.username,
-          senderPhone: contact?.phoneDigits, // use digits-only phone
+          senderPhone: contact?.phoneDigits,
           senderPublicKeyBase64: contact?.publicKeyBase64,
           senderFingerprint: contact?.fingerprint,
           senderKeyIsActive: contact?.isActive,
@@ -274,15 +279,10 @@ class _InboxPageState extends State<InboxPage> {
     final now = DateTime.now();
     final difference = now.difference(date);
 
-    if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
+    if (difference.inDays > 0) return '${difference.inDays}d ago';
+    if (difference.inHours > 0) return '${difference.inHours}h ago';
+    if (difference.inMinutes > 0) return '${difference.inMinutes}m ago';
+    return 'Just now';
   }
 
   @override
@@ -324,173 +324,117 @@ class _InboxPageState extends State<InboxPage> {
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.error_outline, size: 64, color: primaryColor),
-                            const SizedBox(height: 16),
-                            Text(
-                              _error!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyLarge
-                                  ?.copyWith(color: textColor),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                              onPressed: () async {
-                                await _loadContactsCache();
-                                await _fetchMessages();
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: primaryColor,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
+                        child: Text(_error!, style: TextStyle(color: textColor)),
                       ),
                     )
                   : _messages.isEmpty
                       ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.inbox_outlined, size: 64, color: primaryColor),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No messages',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(color: textColor),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Encrypted messages will appear here',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodyMedium
-                                      ?.copyWith(color: textColor.withOpacity(0.7)),
-                                ),
-                              ],
-                            ),
-                          ),
+                          child: Text('No messages', style: TextStyle(color: textColor)),
                         )
-                      : RefreshIndicator(
-                          onRefresh: () async {
-                            await _loadContactsCache();
-                            await _fetchMessages();
-                          },
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
-                            itemBuilder: (context, index) {
-                              final message = _messages[index];
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final message = _messages[index];
 
-                              final senderJid = message['from'] as String? ?? '';
-                              final ciphertext = message['body'] as String? ?? '';
-                              final timestamp = message['timestamp'] as int? ?? 0;
+                            final senderJid = message['from'] as String? ?? '';
+                            final ciphertext = message['body'] as String? ?? '';
+                            final timestamp = message['timestamp'] as int? ?? 0;
 
-                              final contact = _resolveSenderContact(senderJid);
-                              final senderPhone = _formatJidToPhone(senderJid);
-                              final displayName = (contact?.username.trim().isNotEmpty ?? false)
-                                  ? contact!.username
-                                  : _digitsOnly(senderPhone);
+                            final contact = _resolveSenderContact(senderJid);
+                            final senderPhone = _formatJidToPhone(senderJid);
+                            final displayName = (contact?.username.trim().isNotEmpty ?? false)
+                                ? contact!.username
+                                : _digitsOnly(senderPhone);
 
-                              final badgeText = contact == null
-                                  ? 'UNKNOWN'
-                                  : (contact.isExpired || !contact.isActive)
-                                      ? 'OLD/EXPIRED'
-                                      : 'VERIFIED';
+                            final badgeText = contact == null
+                                ? 'UNKNOWN'
+                                : (contact.isExpired || !contact.isActive)
+                                    ? 'OLD/EXPIRED'
+                                    : 'VERIFIED';
 
-                              final badgeColor = contact == null
-                                  ? Colors.grey
-                                  : (contact.isExpired || !contact.isActive)
-                                      ? Colors.red
-                                      : primaryColor;
+                            final badgeColor = contact == null
+                                ? Colors.grey
+                                : (contact.isExpired || !contact.isActive)
+                                    ? Colors.red
+                                    : primaryColor;
 
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                color: surfaceColor,
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: primaryColor.withOpacity(0.18)),
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              color: surfaceColor,
+                              elevation: 2,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                side: BorderSide(color: primaryColor.withOpacity(0.18)),
+                              ),
+                              child: ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
                                 ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 10,
-                                  ),
-                                  leading: CircleAvatar(
-                                    backgroundColor: primaryColor.withOpacity(0.18),
-                                    child: Icon(Icons.lock, color: primaryColor),
-                                  ),
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          displayName,
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
+                                leading: CircleAvatar(
+                                  backgroundColor: primaryColor.withOpacity(0.18),
+                                  child: Icon(Icons.lock, color: primaryColor),
+                                ),
+                                title: Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        displayName,
+                                        style: TextStyle(
+                                          color: textColor,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(999),
+                                        color: badgeColor.withOpacity(0.14),
+                                      ),
+                                      child: Text(
+                                        badgeText,
+                                        style: TextStyle(
+                                          color: badgeColor,
+                                          fontWeight: FontWeight.w800,
+                                          fontSize: 11,
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(999),
-                                          color: badgeColor.withOpacity(0.14),
-                                        ),
-                                        child: Text(
-                                          badgeText,
-                                          style: TextStyle(
-                                            color: badgeColor,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 11,
-                                          ),
-                                        ),
+                                    ),
+                                  ],
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      _previewCiphertext(ciphertext),
+                                      style: TextStyle(
+                                        color: textColor.withOpacity(0.78),
+                                        fontFamily: 'monospace',
+                                        fontSize: 12,
                                       ),
-                                    ],
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
+                                    ),
+                                    if (timestamp > 0) ...[
                                       const SizedBox(height: 6),
                                       Text(
-                                        _previewCiphertext(ciphertext),
+                                        _formatTimestamp(timestamp),
                                         style: TextStyle(
-                                          color: textColor.withOpacity(0.78),
-                                          fontFamily: 'monospace',
-                                          fontSize: 12,
+                                          color: textColor.withOpacity(0.6),
+                                          fontSize: 11,
                                         ),
                                       ),
-                                      if (timestamp > 0) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _formatTimestamp(timestamp),
-                                          style: TextStyle(
-                                            color: textColor.withOpacity(0.6),
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ],
                                     ],
-                                  ),
-                                  trailing: Icon(Icons.chevron_right, color: primaryColor),
-                                  onTap: () => _openDecryptionPage(message),
+                                  ],
                                 ),
-                              );
-                            },
-                          ),
+                                trailing: Icon(Icons.chevron_right, color: primaryColor),
+                                onTap: () => _openDecryptionPage(message),
+                              ),
+                            );
+                          },
                         ),
         );
       },
@@ -501,15 +445,13 @@ class _InboxPageState extends State<InboxPage> {
 class _ContactLite {
   final String storageKey;
   final String username;
-  final String phone;
   final String phoneDigits;
 
   final String publicKeyBase64;
   final String fingerprint;
 
   final DateTime savedAt;
-  final DateTime? issuedAt;
-  final DateTime? expiresAt;
+  final DateTime? expiresAtUtc;
 
   final bool isActive;
   final bool isExpired;
@@ -517,13 +459,11 @@ class _ContactLite {
   _ContactLite({
     required this.storageKey,
     required this.username,
-    required this.phone,
     required this.phoneDigits,
     required this.publicKeyBase64,
     required this.fingerprint,
     required this.savedAt,
-    required this.issuedAt,
-    required this.expiresAt,
+    required this.expiresAtUtc,
     required this.isActive,
     required this.isExpired,
   });
