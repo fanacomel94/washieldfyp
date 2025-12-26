@@ -26,11 +26,15 @@ class _EncryptionPageState extends State<EncryptionPage> {
   String _outputText = '';
   String _outputLabel = '';
 
-  late final BackendServices _backendServices;
-  late final EncryptionFlow _flow;
+  BackendServices? _backendServices;
+  EncryptionFlow? _flow;
 
   bool _busyEncrypt = false;
   bool _busySend = false;
+
+  // init state
+  bool _ready = false;
+  String? _baseUrlResolved;
 
   // for display
   String _toDisplayName = 'Select Contact';
@@ -39,8 +43,23 @@ class _EncryptionPageState extends State<EncryptionPage> {
   @override
   void initState() {
     super.initState();
-    _backendServices = BackendServices(baseUrl: AppConfig.baseUrl);
-    _flow = EncryptionFlow(backendServices: _backendServices);
+    _initBackend();
+  }
+
+  Future<void> _initBackend() async {
+    try {
+      final baseUrl = await AppConfig.getBaseUrl();
+      _baseUrlResolved = baseUrl;
+
+      _backendServices = BackendServices(baseUrl: baseUrl);
+      _flow = EncryptionFlow(backendServices: _backendServices!);
+
+      if (!mounted) return;
+      setState(() => _ready = true);
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Failed to init backend URL: $e');
+    }
   }
 
   @override
@@ -111,8 +130,13 @@ class _EncryptionPageState extends State<EncryptionPage> {
   }
 
   Future<void> _selectSavedContact() async {
+    if (!_ready || _flow == null) {
+      _showError('App not ready yet. Please wait...');
+      return;
+    }
+
     try {
-      final contacts = await _flow.loadSavedContactsStrict();
+      final contacts = await _flow!.loadSavedContactsStrict();
 
       if (contacts.isEmpty) {
         _showError('No saved contacts found. Scan a verified QR code first.');
@@ -256,7 +280,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
       );
 
       if (selected != null) {
-        final v = _flow.validateContactForEncryption(selected);
+        final v = _flow!.validateContactForEncryption(selected);
         if (!v.ok) {
           _showError(v.message);
           return;
@@ -278,9 +302,14 @@ class _EncryptionPageState extends State<EncryptionPage> {
   Future<void> _performEncryption() async {
     if (_busyEncrypt) return;
 
+    if (!_ready || _flow == null) {
+      _showError('App not ready yet. Please wait...');
+      return;
+    }
+
     setState(() => _busyEncrypt = true);
     try {
-      final pre = await _flow.validateAllRequirements(
+      final pre = await _flow!.validateAllRequirements(
         recipientPublicKeyBase64: _recipientPublicKeyController.text.trim(),
         receiverE164: _receiverPhoneController.text.trim(),
         plaintext: _messageController.text,
@@ -291,7 +320,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
         return;
       }
 
-      final ciphertext = await _flow.encryptStrict(
+      final ciphertext = await _flow!.encryptStrict(
         recipientPublicKeyBase64: _recipientPublicKeyController.text.trim(),
         plaintext: _messageController.text,
       );
@@ -312,12 +341,17 @@ class _EncryptionPageState extends State<EncryptionPage> {
   Future<void> _sendCiphertextToWhatsApp() async {
     if (_busySend) return;
 
+    if (!_ready || _flow == null) {
+      _showError('App not ready yet. Please wait...');
+      return;
+    }
+
     setState(() => _busySend = true);
     try {
       final parsedId = int.tryParse(_clientIdController.text.trim());
       final clientId = parsedId ?? 1;
 
-      final pre = _flow.validateSend(
+      final pre = _flow!.validateSend(
         receiverE164: _receiverPhoneController.text.trim(),
         ciphertext: _outputText,
       );
@@ -326,7 +360,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
         return;
       }
 
-      await _flow.sendCiphertext(
+      await _flow!.sendCiphertext(
         clientId: clientId,
         receiverE164: _receiverPhoneController.text.trim(),
         ciphertext: _outputText,
@@ -352,6 +386,48 @@ class _EncryptionPageState extends State<EncryptionPage> {
             isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFF8EF);
         final cardBg = isDark ? const Color(0xFF2C2C2C) : Colors.white;
         final textColor = isDark ? Colors.white : Colors.black87;
+
+        if (!_ready) {
+          return Scaffold(
+            backgroundColor: pageBg,
+            appBar: AppBar(
+              backgroundColor: pageBg,
+              elevation: 0,
+              centerTitle: true,
+              title: Text(
+                'Encrypt',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: textColor,
+                    ),
+              ),
+            ),
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Preparing backend…',
+                    style: TextStyle(color: textColor),
+                  ),
+                  if (_baseUrlResolved != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      _baseUrlResolved!,
+                      style: TextStyle(
+                        color: textColor.withOpacity(0.7),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        }
+
         final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
 
         final bool hasContact =
@@ -510,7 +586,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                     onSelect: _selectSavedContact,
                   ),
                   const SizedBox(height: 18),
-
                   sectionLabel('Receiver key', textColor),
                   const SizedBox(height: 8),
                   TextCardField(
@@ -524,7 +599,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                     onSuffixTap: _selectSavedContact,
                   ),
                   const SizedBox(height: 18),
-
                   sectionLabel('Message', textColor),
                   const SizedBox(height: 8),
                   TextCardField(
@@ -537,7 +611,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                     maxLines: 5,
                   ),
                   const SizedBox(height: 12),
-
                   Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -564,7 +637,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                       ),
                     ],
                   ),
-
                   const SizedBox(height: 18),
                   sectionLabel('Receiver Phone (E.164)', textColor),
                   const SizedBox(height: 8),

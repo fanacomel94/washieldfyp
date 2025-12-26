@@ -77,7 +77,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
 
     final displayPhone = (widget.senderPhone ?? '').trim().isNotEmpty
         ? widget.senderPhone!.trim()
-        : _digitsOnly(_formatJidToPhone(widget.senderJid ?? ''));
+        : _normalizeSenderId(widget.senderJid ?? '');
 
     _senderPhone = displayPhone;
 
@@ -90,6 +90,13 @@ class _DecryptionPageState extends State<DecryptionPage> {
     _senderFingerprint = (widget.senderFingerprint ?? '').trim();
     _senderKeyActive = widget.senderKeyIsActive ?? false;
     _senderKeyExpired = widget.senderKeyIsExpired ?? false;
+
+    // ✅ If inbox already provides a pubkey, treat as verified unless explicitly expired.
+    if (_senderPubController.text.trim().isNotEmpty &&
+        (widget.senderKeyIsExpired != true)) {
+      _senderKeyActive = true;
+      _senderKeyExpired = false;
+    }
   }
 
   @override
@@ -101,9 +108,13 @@ class _DecryptionPageState extends State<DecryptionPage> {
 
   String _digitsOnly(String s) => s.replaceAll(RegExp(r'\D'), '');
 
-  String _formatJidToPhone(String jid) {
-    if (jid.contains('@')) return jid.split('@')[0];
-    return jid;
+  String _normalizeSenderId(String raw) {
+    var s = raw.trim();
+    s = s.replaceFirst('whatsapp:+', '');
+    s = s.replaceFirst('whatsapp:', '');
+    s = s.replaceFirst('tel:', '');
+    if (s.contains('@')) s = s.split('@')[0];
+    return _digitsOnly(s);
   }
 
   // ---------- validation helpers ----------
@@ -197,8 +208,8 @@ class _DecryptionPageState extends State<DecryptionPage> {
     }
   }
 
-  Future<void> _tryAutoResolveSenderFromStorage(String senderJid) async {
-    final digits = _digitsOnly(_formatJidToPhone(senderJid));
+  Future<void> _tryAutoResolveSenderFromStorage(String senderRaw) async {
+    final digits = _normalizeSenderId(senderRaw);
     if (digits.isEmpty) return;
 
     try {
@@ -263,10 +274,11 @@ class _DecryptionPageState extends State<DecryptionPage> {
         setState(() {
           _senderPubController.text = pub;
           _senderName = username.isNotEmpty ? username : _senderName;
-          _senderPhone = _digitsOnly(phone).isNotEmpty ? _digitsOnly(phone) : _senderPhone;
+          _senderPhone =
+              _digitsOnly(phone).isNotEmpty ? _digitsOnly(phone) : _senderPhone;
           _senderFingerprint = fp;
 
-          // auto-resolve means "known contact", treat as active unless you track rotation here
+          // resolved from storage => known contact
           _senderKeyActive = true;
           _senderKeyExpired = false;
         });
@@ -317,7 +329,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
         return;
       }
       if (!_isBase64OfLen(_myPrivateKeyBase64, 32)) {
-        _showError('Your private key is invalid (expected base64 32 bytes). Re-generate keys.');
+        _showError(
+          'Your private key is invalid (expected base64 32 bytes). Re-generate keys.',
+        );
         return;
       }
 
@@ -328,7 +342,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
         return;
       }
       if (!_isBase64OfLen(senderPub, 32)) {
-        _showError('Sender public key invalid. Expected Base64 of 32 bytes (X25519).');
+        _showError(
+          'Sender public key invalid. Expected Base64 of 32 bytes (X25519).',
+        );
         return;
       }
 
@@ -403,8 +419,10 @@ class _DecryptionPageState extends State<DecryptionPage> {
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
 
-        final primaryColor = isDark ? const Color(0xFF8B9D3F) : const Color(0xFF6B8E23);
-        final pageBg = isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFF8EF);
+        final primaryColor =
+            isDark ? const Color(0xFF8B9D3F) : const Color(0xFF6B8E23);
+        final pageBg =
+            isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFF8EF);
         final cardBg = isDark ? const Color(0xFF2C2C2C) : Colors.white;
         final textColor = isDark ? Colors.white : Colors.black87;
         final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
@@ -451,14 +469,22 @@ class _DecryptionPageState extends State<DecryptionPage> {
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Icon(Icons.lock_open, size: 20),
-                      label: const Text('Decrypt', style: TextStyle(fontWeight: FontWeight.w800)),
+                      label: const Text(
+                        'Decrypt',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: primaryColor,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         elevation: 0,
                       ),
                     ),
@@ -472,13 +498,20 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       icon: const Icon(Icons.clear_all, size: 20),
                       label: Text(
                         'Clear',
-                        style: TextStyle(fontWeight: FontWeight.w800, color: textColor),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: textColor,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: isDark ? Colors.white.withOpacity(0.18) : primaryColor.withOpacity(0.35),
+                          color: isDark
+                              ? Colors.white.withOpacity(0.18)
+                              : primaryColor.withOpacity(0.35),
                         ),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                         backgroundColor: cardBg,
                       ),
                     ),
@@ -523,7 +556,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              _senderPhone.isNotEmpty ? _senderPhone : 'No phone detected',
+                              _senderPhone.isNotEmpty
+                                  ? _senderPhone
+                                  : 'No phone detected',
                               style: TextStyle(
                                 color: textColor.withOpacity(0.7),
                                 fontWeight: FontWeight.w600,
@@ -546,7 +581,10 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       ),
                       const SizedBox(width: 10),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
                           color: statusColor.withOpacity(0.14),
@@ -619,7 +657,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: primaryColor,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                               elevation: 0,
                             ),
                           ),
