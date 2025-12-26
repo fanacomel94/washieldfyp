@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:provider/provider.dart';
 
 import '../config.dart';
@@ -20,8 +21,12 @@ class _EncryptionPageState extends State<EncryptionPage> {
   final TextEditingController _recipientPublicKeyController =
       TextEditingController();
   final TextEditingController _receiverPhoneController = TextEditingController();
+
+  // ✅ keep controller if you still want, but NOT used for sending anymore
   final TextEditingController _clientIdController =
       TextEditingController(text: '1');
+
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   String _outputText = '';
   String _outputLabel = '';
@@ -32,11 +37,9 @@ class _EncryptionPageState extends State<EncryptionPage> {
   bool _busyEncrypt = false;
   bool _busySend = false;
 
-  // init state
   bool _ready = false;
   String? _baseUrlResolved;
 
-  // for display
   String _toDisplayName = 'Select Contact';
   String _toDisplayPhone = 'Choose from saved contacts';
 
@@ -60,6 +63,12 @@ class _EncryptionPageState extends State<EncryptionPage> {
       if (!mounted) return;
       _showError('Failed to init backend URL: $e');
     }
+  }
+
+  Future<int> _getClientId() async {
+    final s = (await _storage.read(key: 'wa_client_id') ?? '').trim();
+    final id = int.tryParse(s) ?? 1;
+    return (id == 2) ? 2 : 1;
   }
 
   @override
@@ -107,7 +116,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
     _showOk('Copied to clipboard');
   }
 
-  /// ✅ Demo button: modify 1 character in ciphertext to prove integrity failure
   void _tamperOneChar() {
     if (_outputText.trim().isEmpty) {
       _showError('No ciphertext yet. Encrypt first.');
@@ -116,7 +124,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
     final s = _outputText;
     final idx = (s.length / 2).floor();
 
-    // flip one base64 char to another base64 char
     final ch = s[idx];
     final replacement = (ch == 'A') ? 'B' : 'A';
     final tampered = s.substring(0, idx) + replacement + s.substring(idx + 1);
@@ -348,8 +355,8 @@ class _EncryptionPageState extends State<EncryptionPage> {
 
     setState(() => _busySend = true);
     try {
-      final parsedId = int.tryParse(_clientIdController.text.trim());
-      final clientId = parsedId ?? 1;
+      // ✅ CHANGED: clientId from secure storage
+      final clientId = await _getClientId();
 
       final pre = _flow!.validateSend(
         receiverE164: _receiverPhoneController.text.trim(),
@@ -366,7 +373,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
         ciphertext: _outputText,
       );
 
-      _showOk('Ciphertext sent via WhatsApp');
+      _showOk('Ciphertext sent via WhatsApp (clientId=$clientId)');
     } catch (e) {
       _showError('Failed to send via WhatsApp: $e');
     } finally {
@@ -408,10 +415,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 12),
-                  Text(
-                    'Preparing backend…',
-                    style: TextStyle(color: textColor),
-                  ),
+                  Text('Preparing backend…', style: TextStyle(color: textColor)),
                   if (_baseUrlResolved != null) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -649,20 +653,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                     hintText: 'Example: 60123456789',
                     keyboardType: TextInputType.phone,
                   ),
-
-                  /*const SizedBox(height: 18),
-                  sectionLabel('WhatsApp Client ID', textColor),
-                  const SizedBox(height: 8),
-                  TextCardField(
-                    bg: cardBg,
-                    primaryColor: primaryColor,
-                    textColor: textColor,
-                    hintColor: hintColor,
-                    controller: _clientIdController,
-                    hintText: 'Default: 1',
-                    keyboardType: TextInputType.number,
-                  ),*/
-
                   const SizedBox(height: 18),
 
                   if (_outputText.isNotEmpty) ...[
@@ -694,16 +684,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                                   onPressed: _tamperOneChar,
                                   icon: const Icon(Icons.warning_amber_rounded, size: 18),
                                   label: const Text('Tamper 1 char'),
-                                  style: OutlinedButton.styleFrom(
-                                    side: BorderSide(
-                                      color: Colors.red.withOpacity(0.5),
-                                    ),
-                                    foregroundColor: Colors.red,
-                                    backgroundColor: cardBg,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                  ),
                                 ),
                               ),
                               const SizedBox(width: 10),
@@ -715,10 +695,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: primaryColor,
                                     foregroundColor: Colors.white,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    elevation: 0,
                                   ),
                                 ),
                               ),
@@ -729,7 +705,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
                     ),
                     const SizedBox(height: 18),
                   ],
-
                   const SizedBox(height: 120),
                 ],
               ),
