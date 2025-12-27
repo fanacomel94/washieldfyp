@@ -399,11 +399,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
       final msg = e.toString();
       if (msg.contains('AUTH FAIL')) {
         _showError(
-          'AUTH FAIL (tampered / wrong key / wrong account).\n\n'
-          'Fix:\n'
-          '• Make sure you are using the receiver account private key\n'
+          'AUTH FAIL (tampered / wrong key / wrong account).\n'
+          '• Make sure you are using the sender account public key\n'
           '• Re-scan sender QR (latest)\n'
-          '• Ensure message AAD matches (WA_SHIELD_MSG_V1)',
         );
         return;
       }
