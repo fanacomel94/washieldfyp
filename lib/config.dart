@@ -17,8 +17,8 @@ class AppConfig {
     final info = await DeviceInfoPlugin().androidInfo;
     final isEmulator = !info.isPhysicalDevice;
 
-    return isEmulator ? "http://10.0.2.2:3000" : _pcIpBase;
+    return isEmulator
+        ? "http://10.0.2.2:3000" // emulator
+        : _pcIpBase; // real phone APK  }
   }
 }
-
-
