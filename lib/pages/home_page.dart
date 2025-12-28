@@ -12,9 +12,6 @@ import '../widgets/bottom_nav_bar.dart';
 import 'contact_list_page.dart';
 import 'settings_page.dart';
 
-// If you want to use your bottom nav later:
-// import 'UI/bottom_navigate.dart';
-
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -26,9 +23,7 @@ class HomePage extends StatelessWidget {
         final cs = Theme.of(context).colorScheme;
 
         return Scaffold(
-          // ✅ NEW: use your custom sidebar drawer
           drawer: const AppDrawer(),
-
           body: Container(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -40,15 +35,15 @@ class HomePage extends StatelessWidget {
               ),
             ),
             child: SafeArea(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Top header row
-                    Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Top header row
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+                    child: Row(
                       children: [
-                        // ✅ FIX: openDrawer must use Builder context
+                        // Menu icon
                         Builder(
                           builder: (ctx) => _IconBox(
                             icon: Icons.menu,
@@ -57,20 +52,26 @@ class HomePage extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
+                        
+                        
+                        
+                        // App name text next to logo
                         Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'WAShield',
-                              style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: cs.primary,
-                                  ),
-                            ),
-                            const SizedBox(height: 4),
+                            Image.asset(
+                          'assets/images/LOGO_WASHIELD.png',
+                          height: 70,
+                          width: 200,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(width: 8),
+                           
                             Text(
                               'Encrypt First. Send Securely',
-                              style: Theme.of(context).textTheme.bodyMedium
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
                                   ?.copyWith(
                                     color: isDark
                                         ? Colors.grey[400]
@@ -81,6 +82,8 @@ class HomePage extends StatelessWidget {
                           ],
                         ),
                         const Spacer(),
+                        
+                        // Theme toggle
                         _IconBox(
                           icon: isDark
                               ? Icons.light_mode_outlined
@@ -90,162 +93,253 @@ class HomePage extends StatelessWidget {
                         ),
                       ],
                     ),
+                  ),
 
-                    const SizedBox(height: 18),
-
-                    // Shortcut panel (Scan / My Key / Inbox)
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: isDark
-                              ? [
-                                  cs.primary.withOpacity(0.55),
-                                  cs.primary.withOpacity(0.30),
-                                ]
-                              : [
-                                  cs.primary.withOpacity(0.92),
-                                  cs.primary.withOpacity(0.75),
-                                ],
-                        ),
-                        borderRadius: BorderRadius.circular(22),
-                        boxShadow: [
-                          BoxShadow(
-                            color: cs.primary.withOpacity(isDark ? 0.20 : 0.22),
-                            blurRadius: 18,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Row(
+                  // Main content area - takes available space
+                  Expanded(
+                    child: SingleChildScrollView(
+                      physics: const BouncingScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Expanded(
-                            child: _Shortcut(
-                              icon: Icons.qr_code_scanner,
-                              label: 'Scan',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const KeyScannerPage(),
-                                ),
+                          // Shortcut panel (Scan / My Key / Inbox)
+                          Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isDark
+                                    ? [
+                                        cs.primary.withOpacity(0.55),
+                                        cs.primary.withOpacity(0.30),
+                                      ]
+                                    : [
+                                        cs.primary.withOpacity(0.92),
+                                        cs.primary.withOpacity(0.75),
+                                      ],
                               ),
-                              isDark: isDark,
+                              borderRadius: BorderRadius.circular(22),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.22),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: _Shortcut(
+                                    icon: Icons.qr_code_scanner,
+                                    label: 'Scan',
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const KeyScannerPage(),
+                                      ),
+                                    ),
+                                    isDark: isDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _Shortcut(
+                                    icon: Icons.key,
+                                    label: 'My Key',
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const KeyGenerationPage(),
+                                      ),
+                                    ),
+                                    isDark: isDark,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _Shortcut(
+                                    icon: Icons.inbox,
+                                    label: 'Inbox',
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const InboxPage(),
+                                      ),
+                                    ),
+                                    isDark: isDark,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _Shortcut(
-                              icon: Icons.key,
-                              label: 'My Key',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const KeyGenerationPage(),
+
+                          const SizedBox(height: 22),
+
+                          Text(
+                            'Message Security',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? Colors.grey[200]
+                                      : Colors.grey[900],
+                                ),
+                          ),
+                          const SizedBox(height: 14),
+
+                          // Encrypt / Decrypt tiles
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _BigAction(
+                                  title: 'Encrypt',
+                                  icon: Icons.lock,
+                                  filled: true,
+                                  isDark: isDark,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const EncryptionPage(),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              isDark: isDark,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _Shortcut(
-                              icon: Icons.inbox,
-                              label: 'Inbox',
-                              //badge: '', // quantity of messages in inbox
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const InboxPage(),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: _BigAction(
+                                  title: 'Decrypt',
+                                  icon: Icons.lock_open,
+                                  filled: false,
+                                  isDark: isDark,
+                                  onTap: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const DecryptionPage(),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              isDark: isDark,
+                            ],
+                          ),
+
+                          const SizedBox(height: 22),
+
+                          // NEW: "How to Use WAShield" Section with scrollable steps
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: isDark
+                                    ? [
+                                        cs.primary.withOpacity(0.55),
+                                        cs.primary.withOpacity(0.30),
+                                      ]
+                                    : [
+                                        cs.primary.withOpacity(0.92),
+                                        cs.primary.withOpacity(0.75),
+                                      ],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.22),
+                                  blurRadius: 18,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Icon(
+                                      Icons.help_outline,
+                                      color: Colors.white,
+                                      size: 24,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      'How to Use WAShield',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 18,
+                                          ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                
+                                // Scrollable steps container
+                                Container(
+                                  height: 180, // Fixed height for scrollable area
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(12),
+                                    color: Colors.black.withOpacity(isDark ? 0.18 : 0.12),
+                                  ),
+                                  child: Scrollbar(
+                                    thumbVisibility: true,
+                                    trackVisibility: true,
+                                    thickness: 4,
+                                    radius: const Radius.circular(10),
+                                    child: ListView(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: const EdgeInsets.all(8),
+                                      children: [
+                                        _HowToStep(
+                                          number: '1',
+                                          title: '🔑 Generate Key',
+                                          description: 'Generate public & private keys after register🔐',
+                                          isDark: isDark,
+                                        ),
+                                        _HowToStep(
+                                          number: '2',
+                                          title: '🔄 Exchange QR Keys',
+                                          description: 'Share & scan QR keys with your contact 📷',
+                                          isDark: isDark,
+                                        ),
+                                        _HowToStep(
+                                          number: '3',
+                                          title: '🔒 Encrypt Message',
+                                          description: 'Type message → tap Encrypt and Send ciphertext via WhatsApp 💬',
+                                          isDark: isDark,
+                                        ),
+                                        
+                                        _HowToStep(
+                                          number: '4',
+                                          title: '🔓 Decrypt Message',
+                                          description: 'Open inbox and tap Decrypt to read secure messages 🕵️‍♂️',
+                                          isDark: isDark,
+                                        ),
+                                        
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                
+                                
+                              ],
                             ),
                           ),
-                        ],
+
+                          const SizedBox(height: 22),
+
+                                                 ],
                       ),
                     ),
-
-                    const SizedBox(height: 22),
-
-                    Text(
-                      'Message Security',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: isDark ? Colors.grey[200] : Colors.grey[900],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-
-                    // Encrypt / Decrypt tiles
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _BigAction(
-                            title: 'Encrypt',
-                            icon: Icons.lock,
-                            filled: true,
-                            isDark: isDark,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const EncryptionPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _BigAction(
-                            title: 'Decrypt',
-                            icon: Icons.lock_open,
-                            filled: false,
-                            isDark: isDark,
-                            onTap: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const DecryptionPage(),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    // Bottom filler cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _InfoCard(
-                            title: 'Security Tips',
-                            subtitle:
-                                'Only save public keys from trusted contacts.',
-                            icon: Icons.shield_outlined,
-                            isDark: isDark,
-                            onTap: () {},
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: _InfoCard(
-                            title: 'Quick Reminder',
-                            subtitle: 'Generate keys before encrypting.',
-                            icon: Icons.info_outline,
-                            isDark: isDark,
-                            onTap: () {},
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    _BottomBanner(isDark: isDark),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -271,8 +365,85 @@ class HomePage extends StatelessWidget {
   }
 }
 
-/// ---------- Small widgets ----------
+/// ---------- How-to Step Widget ----------
+class _HowToStep extends StatelessWidget {
+  const _HowToStep({
+    required this.number,
+    required this.title,
+    required this.description,
+    required this.isDark,
+  });
 
+  final String number;
+  final String title;
+  final String description;
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(isDark ? 0.18 : 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withOpacity(0.18)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.92),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(
+              child: Text(
+                number,
+                style: TextStyle(
+                  color: cs.primary,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.9),
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// ---------- Small widgets ----------
 class _IconBox extends StatelessWidget {
   const _IconBox({
     required this.icon,
@@ -305,7 +476,10 @@ class _IconBox extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(icon, color: isDark ? Colors.grey[200] : Colors.grey[900]),
+        child: Icon(
+          icon,
+          color: isDark ? Colors.grey[200] : Colors.grey[900],
+        ),
       ),
     );
   }
@@ -316,7 +490,8 @@ class _Shortcut extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
-    required this.isDark, this.badge, // quantity of messages in inbox if any
+    required this.isDark,
+    this.badge,
   });
 
   final IconData icon;
@@ -351,7 +526,11 @@ class _Shortcut extends StatelessWidget {
                     color: Colors.white.withOpacity(0.92),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(icon, color: cs.primary, size: 28),
+                  child: Icon(
+                    icon,
+                    color: cs.primary,
+                    size: 28,
+                  ),
                 ),
                 if (badge != null)
                   Positioned(
@@ -493,9 +672,10 @@ class _InfoCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+                color: isDark ? Colors.grey[200] : Colors.grey[900],
+              ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -507,60 +687,6 @@ class _InfoCard extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BottomBanner extends StatelessWidget {
-  const _BottomBanner({required this.isDark});
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      height: 140,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [cs.primary.withOpacity(0.30), Colors.black.withOpacity(0.10)]
-              : [cs.primary.withOpacity(0.16), Colors.white.withOpacity(0.75)],
-        ),
-        border: Border.all(color: cs.primary.withOpacity(0.18)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.shield_outlined, size: 60, color: cs.primary),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Secure by Design',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Scan keys, generate your keys, then encrypt before sending.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: isDark ? Colors.grey[300] : Colors.grey[700],
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

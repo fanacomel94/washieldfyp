@@ -348,8 +348,9 @@ class _InboxPageState extends State<InboxPage> {
             : const Color(0xFF6B8E23);
         final textColor = isDark ? Colors.white : Colors.black87;
         final surfaceColor = isDark ? const Color(0xFF2C2C2C) : Colors.white;
-        final pageBg =
-            isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F0);
+        final pageBg = isDark
+            ? const Color(0xFF1A1A1A)
+            : const Color(0xFFF5F5F0);
 
         return Scaffold(
           backgroundColor: pageBg,
@@ -357,12 +358,6 @@ class _InboxPageState extends State<InboxPage> {
             title: const Text('Decrypt Center'),
             centerTitle: true,
             actions: [
-              IconButton(
-                icon: Icon(
-                  isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                ),
-                onPressed: () => themeProvider.toggleTheme(),
-              ),
               IconButton(
                 icon: const Icon(Icons.refresh),
                 onPressed: () async {
@@ -376,153 +371,161 @@ class _InboxPageState extends State<InboxPage> {
           body: _isLoading
               ? const Center(child: CircularProgressIndicator())
               : _error != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Text(_error!, style: TextStyle(color: textColor)),
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Text(_error!, style: TextStyle(color: textColor)),
+                  ),
+                )
+              : _messages.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.inbox,
+                        size: 64,
+                        color: primaryColor.withOpacity(0.5),
                       ),
-                    )
-                  : _messages.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No messages',
-                            style: TextStyle(color: textColor),
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: () async {
-                            _clientId = await _loadClientId();
-                            await _loadContactsCache();
-                            await _fetchMessages();
-                          },
-                          child: ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
-                            itemBuilder: (context, index) {
-                              final message = _messages[index];
+                      const SizedBox(height: 16),
+                      Text('No messages', style: TextStyle(color: textColor)),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: () async {
+                    _clientId = await _loadClientId();
+                    await _loadContactsCache();
+                    await _fetchMessages();
+                  },
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final message = _messages[index];
 
-                              final senderRaw =
-                                  (message['from'] ?? message['phoneNumber'] ?? '')
-                                      .toString()
-                                      .trim();
+                      final senderRaw =
+                          (message['from'] ?? message['phoneNumber'] ?? '')
+                              .toString()
+                              .trim();
 
-                              final ciphertext =
-                                  (message['body'] ?? message['message'] ?? '')
-                                      .toString()
-                                      .trim();
+                      final ciphertext =
+                          (message['body'] ?? message['message'] ?? '')
+                              .toString()
+                              .trim();
 
-                              final timestampRaw =
-                                  (message['timestamp'] ?? message['time'] ?? 0);
-                              final timestamp = (timestampRaw is int)
-                                  ? timestampRaw
-                                  : int.tryParse(timestampRaw.toString()) ?? 0;
+                      final timestampRaw =
+                          (message['timestamp'] ?? message['time'] ?? 0);
+                      final timestamp = (timestampRaw is int)
+                          ? timestampRaw
+                          : int.tryParse(timestampRaw.toString()) ?? 0;
 
-                              final contact = _resolveSenderContact(senderRaw);
+                      final contact = _resolveSenderContact(senderRaw);
 
-                              final digits = _normalizeSenderToDigits(senderRaw);
-                              final displayName =
-                                  (contact?.username.trim().isNotEmpty ?? false)
-                                      ? contact!.username
-                                      : (digits.isNotEmpty ? digits : 'Unknown');
+                      final digits = _normalizeSenderToDigits(senderRaw);
+                      final displayName =
+                          (contact?.username.trim().isNotEmpty ?? false)
+                          ? contact!.username
+                          : (digits.isNotEmpty ? digits : 'Unknown');
 
-                              final badgeText = contact == null
-                                  ? 'UNKNOWN'
-                                  : (contact.isExpired || !contact.isActive)
-                                      ? 'OLD/EXPIRED'
-                                      : 'VERIFIED';
+                      final badgeText = contact == null
+                          ? 'UNKNOWN'
+                          : (contact.isExpired || !contact.isActive)
+                          ? 'OLD/EXPIRED'
+                          : 'VERIFIED';
 
-                              final badgeColor = contact == null
-                                  ? Colors.grey
-                                  : (contact.isExpired || !contact.isActive)
-                                      ? Colors.red
-                                      : primaryColor;
+                      final badgeColor = contact == null
+                          ? Colors.grey
+                          : (contact.isExpired || !contact.isActive)
+                          ? Colors.red
+                          : primaryColor;
 
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 12),
-                                color: surfaceColor,
-                                elevation: 2,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(
-                                    color: primaryColor.withOpacity(0.18),
-                                  ),
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                    vertical: 10,
-                                  ),
-                                  leading: CircleAvatar(
-                                    backgroundColor: primaryColor.withOpacity(0.18),
-                                    child: Icon(Icons.lock, color: primaryColor),
-                                  ),
-                                  title: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(
-                                          displayName,
-                                          style: TextStyle(
-                                            color: textColor,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          borderRadius: BorderRadius.circular(999),
-                                          color: badgeColor.withOpacity(0.14),
-                                        ),
-                                        child: Text(
-                                          badgeText,
-                                          style: TextStyle(
-                                            color: badgeColor,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        _previewCiphertext(ciphertext),
-                                        style: TextStyle(
-                                          color: textColor.withOpacity(0.78),
-                                          fontFamily: 'monospace',
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                      if (timestamp > 0) ...[
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          _formatTimestamp(timestamp),
-                                          style: TextStyle(
-                                            color: textColor.withOpacity(0.6),
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                  trailing: Icon(
-                                    Icons.chevron_right,
-                                    color: primaryColor,
-                                  ),
-                                  onTap: () => _openDecryptionPage(message),
-                                ),
-                              );
-                            },
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: surfaceColor,
+                        elevation: 2,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: primaryColor.withOpacity(0.18),
                           ),
                         ),
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 10,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: primaryColor.withOpacity(0.18),
+                            child: Icon(Icons.lock, color: primaryColor),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  displayName,
+                                  style: TextStyle(
+                                    color: textColor,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 4,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(999),
+                                  color: badgeColor.withOpacity(0.14),
+                                ),
+                                child: Text(
+                                  badgeText,
+                                  style: TextStyle(
+                                    color: badgeColor,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const SizedBox(height: 6),
+                              Text(
+                                _previewCiphertext(ciphertext),
+                                style: TextStyle(
+                                  color: textColor.withOpacity(0.78),
+                                  fontFamily: 'monospace',
+                                  fontSize: 12,
+                                ),
+                              ),
+                              if (timestamp > 0) ...[
+                                const SizedBox(height: 6),
+                                Text(
+                                  _formatTimestamp(timestamp),
+                                  style: TextStyle(
+                                    color: textColor.withOpacity(0.6),
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          trailing: Icon(
+                            Icons.chevron_right,
+                            color: primaryColor,
+                          ),
+                          onTap: () => _openDecryptionPage(message),
+                        ),
+                      );
+                    },
+                  ),
+                ),
         );
       },
     );

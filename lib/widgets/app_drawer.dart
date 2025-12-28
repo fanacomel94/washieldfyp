@@ -161,9 +161,7 @@ class _AppDrawerState extends State<AppDrawer> {
         content: TextField(
           controller: controller,
           keyboardType: TextInputType.phone,
-          decoration: const InputDecoration(
-            hintText: 'Example: 60123456789',
-          ),
+          decoration: const InputDecoration(hintText: 'Example: 60123456789'),
         ),
         actions: [
           TextButton(
@@ -193,10 +191,12 @@ class _AppDrawerState extends State<AppDrawer> {
   // ---------------------------------------------------------------------------
   void _showHelp() {
     final tips = [
-      'Scan contact QR before encrypting.',
-      'Modified QR will be rejected.',
-      'AES-GCM ensures integrity.',
-      'Never share private keys.',
+      '⚠️ Important Notes',
+      'WAShield never reads or stores your messages',
+      'If you change your key, contacts must scan again',
+      'Do not share screenshots of private keys',
+      'Only scan QR codes from trusted contacts',
+      'Expired or invalid QR codes will be rejected automatically',
     ]..shuffle();
 
     showDialog(
@@ -296,9 +296,11 @@ class _AppDrawerState extends State<AppDrawer> {
                 backgroundColor: theme.colorScheme.primaryContainer,
                 backgroundImage: _avatarImage(),
                 child: _avatarImage() == null
-                    ? Icon(Icons.person,
+                    ? Icon(
+                        Icons.person,
                         size: 40,
-                        color: theme.colorScheme.onPrimaryContainer)
+                        color: theme.colorScheme.onPrimaryContainer,
+                      )
                     : null,
               ),
             ),
@@ -310,8 +312,9 @@ class _AppDrawerState extends State<AppDrawer> {
               onTap: _editName,
               child: Text(
                 _username,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
 
@@ -346,14 +349,15 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  Widget _item(IconData icon, String title, VoidCallback onTap,
-      {bool danger = false}) {
+  Widget _item(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    bool danger = false,
+  }) {
     return ListTile(
       leading: Icon(icon, color: danger ? Colors.red : null),
-      title: Text(
-        title,
-        style: TextStyle(color: danger ? Colors.red : null),
-      ),
+      title: Text(title, style: TextStyle(color: danger ? Colors.red : null)),
       onTap: onTap,
     );
   }

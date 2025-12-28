@@ -305,6 +305,119 @@ class CryptoManager {
     return newPubs;
   }
 
+  // ---------------------------------------------------------------------------
+  // ✅ Contact Management: Remove old/expired contacts when new key is scanned
+  // ---------------------------------------------------------------------------
+
+  /// Remove old contact entries for the same phone number based on expiry date.
+  ///
+  /// When a user scans a new key from an existing contact:
+  /// - Find all contacts with same phone number
+  /// - Remove expired entries (expiresAt < now)
+  /// - Remove older entries if new key is more recent
+  /// - Keep only the latest valid key
+  ///
+  /// Returns number of contacts removed.
+  static Future<int> removeOldContactsByPhone(String phoneDigits) async {
+    if (phoneDigits.trim().isEmpty) return 0;
+
+    try {
+      final all = await _secureStorage.readAll();
+      final now = DateTime.now().toUtc();
+      int removedCount = 0;
+
+      final entries = all.entries
+          .where((e) => e.key.startsWith('wa_shield_contact_'))
+          .toList();
+
+      // Group contacts by phone number
+      final Map<String, List<MapEntry<String, String>>> contactsByPhone = {};
+
+      for (final e in entries) {
+        try {
+          final data = jsonDecode(e.value) as Map<String, dynamic>;
+          final storedPhone = (data['phone'] ?? '').toString().trim();
+          final storedDigits = storedPhone.replaceAll(RegExp(r'\D'), '');
+
+          if (storedDigits.isEmpty) continue;
+
+          if (contactsByPhone[storedDigits] == null) {
+            contactsByPhone[storedDigits] = [];
+          }
+          contactsByPhone[storedDigits]!.add(e);
+        } catch (_) {
+          // Skip malformed entries
+        }
+      }
+
+      // Process contacts matching the phone number
+      final matchingContacts =
+          contactsByPhone[phoneDigits.replaceAll(RegExp(r'\D'), '')];
+      if (matchingContacts == null || matchingContacts.isEmpty) {
+        return 0;
+      }
+
+      // Sort by savedAt (newest first)
+      matchingContacts.sort((a, b) {
+        try {
+          final dataA = jsonDecode(a.value) as Map<String, dynamic>;
+          final dataB = jsonDecode(b.value) as Map<String, dynamic>;
+
+          final savedAtA = dataA['savedAt'] ?? '';
+          final savedAtB = dataB['savedAt'] ?? '';
+
+          DateTime dateA = DateTime.fromMillisecondsSinceEpoch(0);
+          DateTime dateB = DateTime.fromMillisecondsSinceEpoch(0);
+
+          try {
+            if (savedAtA.toString().isNotEmpty) {
+              dateA = DateTime.parse(savedAtA.toString());
+            }
+          } catch (_) {}
+
+          try {
+            if (savedAtB.toString().isNotEmpty) {
+              dateB = DateTime.parse(savedAtB.toString());
+            }
+          } catch (_) {}
+
+          return dateB.compareTo(dateA); // Newest first
+        } catch (_) {
+          return 0;
+        }
+      });
+
+      // Keep the newest, remove expired and older entries
+      for (int i = 0; i < matchingContacts.length; i++) {
+        final e = matchingContacts[i];
+
+        try {
+          final data = jsonDecode(e.value) as Map<String, dynamic>;
+          final expiresAtStr = (data['expiresAt'] ?? '').toString();
+
+          DateTime expiresAt = DateTime.fromMillisecondsSinceEpoch(0);
+          try {
+            if (expiresAtStr.isNotEmpty) {
+              expiresAt = DateTime.parse(expiresAtStr);
+            }
+          } catch (_) {}
+
+          // Remove if expired OR if not the newest entry
+          if (expiresAt.isBefore(now) || i > 0) {
+            await _secureStorage.delete(key: e.key);
+            removedCount++;
+          }
+        } catch (_) {
+          // Skip on error
+        }
+      }
+
+      return removedCount;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   static Future<String> computeSharedSecretAesKeyBase64(
     String theirPublicKeyBase64,
   ) async {

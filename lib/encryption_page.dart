@@ -521,7 +521,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
                             )
                           : const Icon(Icons.lock, size: 20),
                       label: const Text(
-                        'Encrypt',
+                        'Encrypt Your Secret Message',
                         style: TextStyle(fontWeight: FontWeight.w800),
                       ),
                       style: ElevatedButton.styleFrom(

@@ -180,7 +180,9 @@ class _KeyScannerPageState extends State<KeyScannerPage> {
       return;
     }
     if (!CryptoManager.validatePublicKey(edPub)) {
-      _setErr('Invalid ed25519 public key format (must be Base64 of 32 bytes).');
+      _setErr(
+        'Invalid ed25519 public key format (must be Base64 of 32 bytes).',
+      );
       return;
     }
 
@@ -188,8 +190,8 @@ class _KeyScannerPageState extends State<KeyScannerPage> {
     // but you can still do an extra UX message if you want (optional).
 
     // Self-scan block by phone
-    final myPhone =
-        (await _secureStorage.read(key: 'wa_shield_my_phone') ?? '').trim();
+    final myPhone = (await _secureStorage.read(key: 'wa_shield_my_phone') ?? '')
+        .trim();
     if (myPhone.isNotEmpty && myPhone == phone) {
       _setErr('Self-scan blocked (this is your own QR).');
       return;
@@ -215,62 +217,67 @@ class _KeyScannerPageState extends State<KeyScannerPage> {
     });
   }
 
-Future<void> _saveContact() async {
-  if (_contact == null) return;
+  Future<void> _saveContact() async {
+    if (_contact == null) return;
 
-  setState(() => _saving = true);
+    setState(() => _saving = true);
 
-  try {
-    final payload = _contact!.fullPayload;
-    final userId = _contact!.userId;
+    try {
+      final payload = _contact!.fullPayload;
+      final userId = _contact!.userId;
 
-    // ✅ Normalize phone for matching with WhatsApp JID
-    final phoneDigits = _contact!.phone.replaceAll(RegExp(r'\D'), '');
+      // ✅ Normalize phone for matching with WhatsApp JID
+      final phoneDigits = _contact!.phone.replaceAll(RegExp(r'\D'), '');
 
-    // ✅ Convert compact exp(epoch seconds) -> ISO string (optional but helpful)
-    DateTime? expiresAtUtc;
-    final expRaw = payload['exp'];
-    final expSec = (expRaw is int) ? expRaw : int.tryParse(expRaw.toString());
-    if (expSec != null && expSec > 0) {
-      expiresAtUtc = DateTime.fromMillisecondsSinceEpoch(expSec * 1000, isUtc: true);
+      // ✅ Remove old contact entries with same phone (expired or older keys)
+      await CryptoManager.removeOldContactsByPhone(phoneDigits);
+
+      // ✅ Convert compact exp(epoch seconds) -> ISO string (optional but helpful)
+      DateTime? expiresAtUtc;
+      final expRaw = payload['exp'];
+      final expSec = (expRaw is int) ? expRaw : int.tryParse(expRaw.toString());
+      if (expSec != null && expSec > 0) {
+        expiresAtUtc = DateTime.fromMillisecondsSinceEpoch(
+          expSec * 1000,
+          isUtc: true,
+        );
+      }
+
+      final data = jsonEncode({
+        'id': userId,
+        'username': _contact!.username,
+        'phone': phoneDigits,
+
+        // keys (top level)
+        'x25519PublicKey': _contact!.x25519PublicKey,
+        'ed25519PublicKey': _contact!.ed25519PublicKey,
+
+        // helpful fields for Inbox/Decrypt validation
+        'fingerprint': '', // optional if you implement later
+        'expiresAt': expiresAtUtc?.toIso8601String(), // ✅ optional
+        'savedAt': DateTime.now().toIso8601String(),
+
+        // original compact signed payload
+        'payload': payload,
+      });
+
+      await _secureStorage.write(key: 'wa_shield_contact_$userId', value: data);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Contact saved to secure storage')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save contact: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-
-    final data = jsonEncode({
-      'id': userId,
-      'username': _contact!.username,
-      'phone': phoneDigits,
-
-      // keys (top level)
-      'x25519PublicKey': _contact!.x25519PublicKey,
-      'ed25519PublicKey': _contact!.ed25519PublicKey,
-
-      // helpful fields for Inbox/Decrypt validation
-      'fingerprint': '', // optional if you implement later
-      'expiresAt': expiresAtUtc?.toIso8601String(), // ✅ optional
-      'savedAt': DateTime.now().toIso8601String(),
-
-      // original compact signed payload
-      'payload': payload,
-    });
-
-    await _secureStorage.write(key: 'wa_shield_contact_$userId', value: data);
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Contact saved to secure storage')),
-      );
-    }
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save contact: $e')),
-      );
-    }
-  } finally {
-    if (mounted) setState(() => _saving = false);
   }
-}
-
 
   void _resetAndScanAgain() {
     setState(() {
@@ -302,8 +309,9 @@ Future<void> _saveContact() async {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
-        final primaryColor =
-            isDark ? const Color(0xFFAABF3F) : const Color(0xFF6B8E23);
+        final primaryColor = isDark
+            ? const Color(0xFFAABF3F)
+            : const Color(0xFF6B8E23);
 
         if (!_permissionChecked) {
           return const Scaffold(
@@ -319,22 +327,25 @@ Future<void> _saveContact() async {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.camera_alt_outlined,
-                        size: 64, color: primaryColor),
+                    Icon(
+                      Icons.camera_alt_outlined,
+                      size: 64,
+                      color: primaryColor,
+                    ),
                     const SizedBox(height: 24),
                     Text(
                       'Camera Permission Required',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: primaryColor,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        color: primaryColor,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       'Please grant camera permission to scan QR codes.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 24),
@@ -380,10 +391,7 @@ Future<void> _saveContact() async {
           onChooseFromMedia: _isScanningFromGallery ? () {} : _scanFromGallery,
           cameraPreview: Stack(
             children: [
-              MobileScanner(
-                controller: _controller,
-                onDetect: _onDetect,
-              ),
+              MobileScanner(controller: _controller, onDetect: _onDetect),
               if (_scanError != null)
                 Align(
                   alignment: Alignment.topCenter,
