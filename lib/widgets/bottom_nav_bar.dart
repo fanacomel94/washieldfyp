@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -13,12 +12,12 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // ✅ Use colors from app_theme via Theme.of(context)
-    final colorScheme = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final primaryColor = colorScheme.primary;
-    final tertiaryColor = colorScheme.tertiary;
-    final surfaceColor = colorScheme.surface;
+
+    final primaryColor = cs.primary;
+    final tertiaryColor = cs.tertiary;
+    final surfaceColor = cs.surface;
 
     return Container(
       decoration: BoxDecoration(
@@ -30,7 +29,10 @@ class BottomNavBar extends StatelessWidget {
                   Color.lerp(surfaceColor, Colors.black, 0.2)!,
                   Color.lerp(surfaceColor, Colors.black, 0.4)!,
                 ]
-              : [Colors.white, Color.lerp(Colors.white, primaryColor, 0.05)!],
+              : [
+                  Colors.white,
+                  Color.lerp(Colors.white, primaryColor, 0.05)!,
+                ],
         ),
         boxShadow: [
           BoxShadow(
@@ -44,44 +46,49 @@ class BottomNavBar extends StatelessWidget {
           top: BorderSide(color: primaryColor.withOpacity(0.2), width: 1),
         ),
       ),
+      // ✅ IMPORTANT: bottom inset only
       child: SafeArea(
-        child: Container(
-          height: 70,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _NavItem(
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home_rounded,
-                label: 'Home',
-                isActive: currentIndex == 0,
-                onTap: () => onTap(0),
-                isDark: isDark,
-                primaryColor: primaryColor,
-                tertiaryColor: tertiaryColor,
-              ),
-              _NavItem(
-                icon: Icons.person_outline_rounded,
-                activeIcon: Icons.person_rounded,
-                label: 'Contacts',
-                isActive: currentIndex == 1,
-                onTap: () => onTap(1),
-                isDark: isDark,
-                primaryColor: primaryColor,
-                tertiaryColor: tertiaryColor,
-              ),
-              _NavItem(
-                icon: Icons.settings_outlined,
-                activeIcon: Icons.settings_rounded,
-                label: 'Settings',
-                isActive: currentIndex == 2,
-                onTap: () => onTap(2),
-                isDark: isDark,
-                primaryColor: primaryColor,
-                tertiaryColor: tertiaryColor,
-              ),
-            ],
+        top: false,
+        child: SizedBox(
+          // ✅ IMPORTANT: a stable height for all devices
+          height: 64,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _NavItem(
+                  icon: Icons.home_outlined,
+                  activeIcon: Icons.home_rounded,
+                  label: 'Home',
+                  isActive: currentIndex == 0,
+                  onTap: () => onTap(0),
+                  isDark: isDark,
+                  primaryColor: primaryColor,
+                  tertiaryColor: tertiaryColor,
+                ),
+                _NavItem(
+                  icon: Icons.person_outline_rounded,
+                  activeIcon: Icons.person_rounded,
+                  label: 'Contacts',
+                  isActive: currentIndex == 1,
+                  onTap: () => onTap(1),
+                  isDark: isDark,
+                  primaryColor: primaryColor,
+                  tertiaryColor: tertiaryColor,
+                ),
+                _NavItem(
+                  icon: Icons.settings_outlined,
+                  activeIcon: Icons.settings_rounded,
+                  label: 'Settings',
+                  isActive: currentIndex == 2,
+                  onTap: () => onTap(2),
+                  isDark: isDark,
+                  primaryColor: primaryColor,
+                  tertiaryColor: tertiaryColor,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -116,9 +123,9 @@ class _NavItem extends StatefulWidget {
 
 class _NavItemState extends State<_NavItem>
     with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
-  late Animation<double> _opacityAnimation;
+  late final AnimationController _controller;
+  late final Animation<double> _scaleAnimation;
+  late final Animation<double> _opacityAnimation;
 
   @override
   void initState() {
@@ -128,15 +135,13 @@ class _NavItemState extends State<_NavItem>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.92,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
 
-    _opacityAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.7,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+    _opacityAnimation = Tween<double>(begin: 1.0, end: 0.7).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
   }
 
   @override
@@ -145,18 +150,14 @@ class _NavItemState extends State<_NavItem>
     super.dispose();
   }
 
-  void _handleTapDown(TapDownDetails details) {
-    _controller.forward();
-  }
+  void _handleTapDown(TapDownDetails details) => _controller.forward();
 
   void _handleTapUp(TapUpDetails details) {
     _controller.reverse();
     widget.onTap();
   }
 
-  void _handleTapCancel() {
-    _controller.reverse();
-  }
+  void _handleTapCancel() => _controller.reverse();
 
   Color _getInactiveIconColor() {
     return widget.isDark
@@ -173,6 +174,7 @@ class _NavItemState extends State<_NavItem>
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTapDown: _handleTapDown,
       onTapUp: _handleTapUp,
       onTapCancel: _handleTapCancel,
@@ -187,15 +189,16 @@ class _NavItemState extends State<_NavItem>
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+
+          // ✅ FIX: remove vertical padding to prevent height squeeze
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+
           decoration: BoxDecoration(
             gradient: widget.isActive
                 ? LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: widget.isDark
-                        ? [widget.primaryColor, widget.tertiaryColor]
-                        : [widget.primaryColor, widget.tertiaryColor],
+                    colors: [widget.primaryColor, widget.tertiaryColor],
                   )
                 : null,
             borderRadius: BorderRadius.circular(20),
@@ -209,39 +212,46 @@ class _NavItemState extends State<_NavItem>
                       offset: const Offset(0, 4),
                     ),
                   ]
-                : [],
+                : const [],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                transitionBuilder: (child, animation) {
-                  return ScaleTransition(scale: animation, child: child);
-                },
+                duration: const Duration(milliseconds: 250),
+                transitionBuilder: (child, animation) =>
+                    ScaleTransition(scale: animation, child: child),
                 child: Icon(
                   widget.isActive ? widget.activeIcon : widget.icon,
                   key: ValueKey<bool>(widget.isActive),
-                  color: widget.isActive
-                      ? Colors.white
-                      : _getInactiveIconColor(),
-                  size: 26,
+                  color: widget.isActive ? Colors.white : _getInactiveIconColor(),
+
+                  // ✅ FIX: slightly smaller icon
+                  size: 22,
                 ),
               ),
-              const SizedBox(height: 3),
+
+              // ✅ FIX: smaller spacing
+              const SizedBox(height: 2),
+
               AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 300),
+                duration: const Duration(milliseconds: 250),
                 style: TextStyle(
-                  fontSize: widget.isActive ? 12 : 11,
-                  fontWeight: widget.isActive
-                      ? FontWeight.w700
-                      : FontWeight.w600,
-                  color: widget.isActive
-                      ? Colors.white
-                      : _getInactiveTextColor(),
+                  // ✅ FIX: stable font size
+                  fontSize: 11,
+                  fontWeight:
+                      widget.isActive ? FontWeight.w700 : FontWeight.w600,
+                  color: widget.isActive ? Colors.white : _getInactiveTextColor(),
                 ),
-                child: Text(widget.label),
+                child: Text(
+                  widget.label,
+
+                  // ✅ FIX: prevent font scaling overflow
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.clip,
+                ),
               ),
             ],
           ),
