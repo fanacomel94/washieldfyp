@@ -30,8 +30,14 @@ class HomePage extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: isDark
-                    ? [const Color(0xFF1A1A1A), const Color(0xFF2C2C2C)]
-                    : [Colors.white, const Color(0xFFF5F5F0)],
+                    ? [
+                        const Color.fromARGB(255, 59, 59, 59),
+                        const Color.fromARGB(255, 0, 0, 0),
+                      ]
+                    : [
+                        const Color.fromARGB(255, 197, 233, 209),
+                        const Color.fromARGB(255, 197, 233, 209),
+                      ],
               ),
             ),
             child: SafeArea(
@@ -52,26 +58,22 @@ class HomePage extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        
-                        
-                        
+
                         // App name text next to logo
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Image.asset(
-                          'assets/images/LOGO_WASHIELD.png',
-                          height: 70,
-                          width: 200,
-                          fit: BoxFit.contain,
-                        ),
-                        const SizedBox(width: 8),
-                           
+                              'assets/images/LOGO_WASHIELD.png',
+                              height: 70,
+                              width: 200,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(width: 8),
+
                             Text(
                               'Encrypt First. Send Securely',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
+                              style: Theme.of(context).textTheme.bodySmall
                                   ?.copyWith(
                                     color: isDark
                                         ? Colors.grey[400]
@@ -82,7 +84,7 @@ class HomePage extends StatelessWidget {
                           ],
                         ),
                         const Spacer(),
-                        
+
                         // Theme toggle
                         _IconBox(
                           icon: isDark
@@ -123,7 +125,9 @@ class HomePage extends StatelessWidget {
                               borderRadius: BorderRadius.circular(22),
                               boxShadow: [
                                 BoxShadow(
-                                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.22),
+                                  color: cs.primary.withOpacity(
+                                    isDark ? 0.20 : 0.22,
+                                  ),
                                   blurRadius: 18,
                                   offset: const Offset(0, 10),
                                 ),
@@ -152,7 +156,8 @@ class HomePage extends StatelessWidget {
                                     onTap: () => Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => const KeyGenerationPage(),
+                                        builder: (_) =>
+                                            const KeyGenerationPage(),
                                       ),
                                     ),
                                     isDark: isDark,
@@ -180,9 +185,7 @@ class HomePage extends StatelessWidget {
 
                           Text(
                             'Message Security',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
+                            style: Theme.of(context).textTheme.titleLarge
                                 ?.copyWith(
                                   fontWeight: FontWeight.w700,
                                   color: isDark
@@ -199,7 +202,7 @@ class HomePage extends StatelessWidget {
                                 child: _BigAction(
                                   title: 'Encrypt',
                                   icon: Icons.lock,
-                                  filled: true,
+                                  filled: false,
                                   isDark: isDark,
                                   onTap: () => Navigator.push(
                                     context,
@@ -233,25 +236,44 @@ class HomePage extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
+                              // ✅ Glass morphism effect with theme-aware gradient
                               gradient: LinearGradient(
                                 begin: Alignment.topLeft,
                                 end: Alignment.bottomRight,
                                 colors: isDark
                                     ? [
-                                        cs.primary.withOpacity(0.55),
-                                        cs.primary.withOpacity(0.30),
+                                        cs.primary.withOpacity(0.15),
+                                        cs.primary.withOpacity(0.08),
                                       ]
                                     : [
-                                        cs.primary.withOpacity(0.92),
-                                        cs.primary.withOpacity(0.75),
+                                        cs.primary.withOpacity(0.12),
+                                        Colors.white.withOpacity(0.20),
                                       ],
                               ),
                               borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isDark
+                                    ? Colors.white.withOpacity(0.12)
+                                    : Colors.white.withOpacity(0.25),
+                                width: 1.5,
+                              ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.22),
-                                  blurRadius: 18,
-                                  offset: const Offset(0, 6),
+                                  color: cs.primary.withOpacity(
+                                    isDark ? 0.08 : 0.10,
+                                  ),
+                                  blurRadius: 20,
+                                  offset: const Offset(0, 8),
+                                  spreadRadius: 1,
+                                ),
+                                // Inner glow for glass effect
+                                BoxShadow(
+                                  color: Colors.white.withOpacity(
+                                    isDark ? 0.05 : 0.15,
+                                  ),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, -2),
+                                  spreadRadius: 0,
                                 ),
                               ],
                             ),
@@ -262,7 +284,7 @@ class HomePage extends StatelessWidget {
                                   children: [
                                     Icon(
                                       Icons.help_outline,
-                                      color: Colors.white,
+                                      color: isDark ? Colors.white : cs.primary,
                                       size: 24,
                                     ),
                                     const SizedBox(width: 10),
@@ -272,7 +294,9 @@ class HomePage extends StatelessWidget {
                                           .textTheme
                                           .titleMedium
                                           ?.copyWith(
-                                            color: Colors.white,
+                                            color: isDark
+                                                ? Colors.white
+                                                : cs.primary,
                                             fontWeight: FontWeight.w700,
                                             fontSize: 18,
                                           ),
@@ -280,17 +304,26 @@ class HomePage extends StatelessWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 16),
-                                
+
                                 // Scrollable steps container
                                 Container(
-                                  height: 180, // Fixed height for scrollable area
+                                  height:
+                                      250, // Fixed height for scrollable area
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    color: Colors.black.withOpacity(isDark ? 0.18 : 0.12),
+                                    color: isDark
+                                        ? Colors.black.withOpacity(0.20)
+                                        : Colors.black.withOpacity(0.05),
+                                    border: Border.all(
+                                      color: isDark
+                                          ? Colors.white.withOpacity(0.10)
+                                          : Colors.black.withOpacity(0.08),
+                                      width: 1,
+                                    ),
                                   ),
                                   child: Scrollbar(
-                                    thumbVisibility: true,
-                                    trackVisibility: true,
+                                    thumbVisibility: false,
+                                    trackVisibility: false,
                                     thickness: 4,
                                     radius: const Radius.circular(10),
                                     child: ListView(
@@ -300,42 +333,42 @@ class HomePage extends StatelessWidget {
                                         _HowToStep(
                                           number: '1',
                                           title: '🔑 Generate Key',
-                                          description: 'Generate public & private keys after register🔐',
+                                          description:
+                                              'Generate public & private keys at My Key after set up account🔐',
                                           isDark: isDark,
                                         ),
                                         _HowToStep(
                                           number: '2',
                                           title: '🔄 Exchange QR Keys',
-                                          description: 'Share & scan QR keys with your contact 📷',
+                                          description:
+                                              'Scan & share QR public keys with who you want to communicate 📷',
                                           isDark: isDark,
                                         ),
                                         _HowToStep(
                                           number: '3',
                                           title: '🔒 Encrypt Message',
-                                          description: 'Type message → tap Encrypt and Send ciphertext via WhatsApp 💬',
+                                          description:
+                                              'Type message or your secret, Encrypt and Send ciphertext via WhatsApp 💬',
                                           isDark: isDark,
                                         ),
-                                        
+
                                         _HowToStep(
                                           number: '4',
                                           title: '🔓 Decrypt Message',
-                                          description: 'Open inbox and tap Decrypt to read secure messages 🕵️‍♂️',
+                                          description:
+                                              'Receive ciphertext from WhatsApp, Open inbox and tap Decrypt to read secure messages 🕵️‍♂️',
                                           isDark: isDark,
                                         ),
-                                        
                                       ],
                                     ),
                                   ),
                                 ),
-                                
-                                
                               ],
                             ),
                           ),
 
                           const SizedBox(height: 22),
-
-                                                 ],
+                        ],
                       ),
                     ),
                   ),
@@ -387,9 +420,30 @@ class _HowToStep extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(isDark ? 0.18 : 0.12),
+        // ✅ Glass effect step cards
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [Colors.white.withOpacity(0.08), Colors.white.withOpacity(0.04)]
+              : [cs.primary.withOpacity(0.08), Colors.white.withOpacity(0.12)],
+        ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.18)),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.12)
+              : cs.primary.withOpacity(0.15),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: isDark
+                ? Colors.black.withOpacity(0.10)
+                : cs.primary.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,14 +452,28 @@ class _HowToStep extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.92),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  cs.primary.withOpacity(0.90),
+                  cs.primary.withOpacity(0.70),
+                ],
+              ),
               borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: cs.primary.withOpacity(0.30),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             child: Center(
               child: Text(
                 number,
-                style: TextStyle(
-                  color: cs.primary,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
                 ),
@@ -420,7 +488,7 @@ class _HowToStep extends StatelessWidget {
                 Text(
                   title,
                   style: TextStyle(
-                    color: Colors.white,
+                    color: isDark ? Colors.white : cs.primary,
                     fontWeight: FontWeight.w700,
                     fontSize: 16,
                   ),
@@ -429,7 +497,9 @@ class _HowToStep extends StatelessWidget {
                 Text(
                   description,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: isDark
+                        ? Colors.white.withOpacity(0.85)
+                        : Colors.black.withOpacity(0.75),
                     fontSize: 13,
                     height: 1.4,
                   ),
@@ -476,10 +546,7 @@ class _IconBox extends StatelessWidget {
             ),
           ],
         ),
-        child: Icon(
-          icon,
-          color: isDark ? Colors.grey[200] : Colors.grey[900],
-        ),
+        child: Icon(icon, color: isDark ? Colors.grey[200] : Colors.grey[900]),
       ),
     );
   }
@@ -526,11 +593,7 @@ class _Shortcut extends StatelessWidget {
                     color: Colors.white.withOpacity(0.92),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(
-                    icon,
-                    color: cs.primary,
-                    size: 28,
-                  ),
+                  child: Icon(icon, color: cs.primary, size: 28),
                 ),
                 if (badge != null)
                   Positioned(

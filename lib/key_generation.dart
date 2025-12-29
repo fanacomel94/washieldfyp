@@ -1,6 +1,4 @@
-// ==============================
-// FILE 1: lib/key_generation.dart
-// ==============================
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -202,7 +200,9 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
   }
 
   Future<void> _confirmChangeKey(Color primaryColor, bool isDark) async {
-    final surface = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+    final cs = Theme.of(context).colorScheme;
+
+    final surface = cs.surface;
     final text = isDark ? Colors.white : Colors.black87;
 
     final confirmed = await showDialog<bool>(
@@ -214,7 +214,7 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
           style: TextStyle(color: text, fontWeight: FontWeight.w900),
         ),
         content: Text(
-          'Once u change key, u need to exchange key again with receiver.',
+          'Once you change key, you need to exchange key again with receiver.',
           style: TextStyle(color: text.withOpacity(0.85), height: 1.35),
         ),
         actions: [
@@ -247,16 +247,16 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
-        final primaryColor = isDark
-            ? const Color(0xFFAABF3F)
-            : const Color(0xFF6B8E23);
+        final cs = Theme.of(context).colorScheme;
 
-        final pageBg = isDark
-            ? const Color(0xFF1A1A1A)
-            : const Color(0xFFDDF1E1);
-        final cardBg = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+        // ✅ Follow app theme
+        final primaryColor = cs.primary;
+        final pageBg = Theme.of(context).scaffoldBackgroundColor;
+        final cardBg = cs.surface;
+
+        // text
         final textColor = isDark ? Colors.white : Colors.black87;
-        final subText = isDark ? Colors.grey[400]! : Colors.grey[700]!;
+        final subText = isDark ? Colors.white70 : Colors.black54;
 
         final canShowQr = _qrData.isNotEmpty && _error == null;
 
@@ -266,7 +266,8 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
         return Scaffold(
           backgroundColor: pageBg,
           appBar: AppBar(
-            backgroundColor: pageBg,
+            // uses AppTheme appBarTheme automatically
+            backgroundColor: Theme.of(context).appBarTheme.backgroundColor,
             elevation: 0,
             centerTitle: true,
             leading: Padding(
@@ -281,9 +282,9 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
             title: Text(
               'My Key',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w900,
-                color: textColor,
-              ),
+                    fontWeight: FontWeight.w900,
+                    color: textColor,
+                  ),
             ),
           ),
           body: SafeArea(
@@ -299,12 +300,12 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: primaryColor.withOpacity(isDark ? 0.16 : 0.12),
-                        blurRadius: 20,
+                        color: primaryColor.withOpacity(isDark ? 0.20 : 0.14),
+                        blurRadius: 22,
                         offset: const Offset(0, 12),
                       ),
                     ],
-                    border: Border.all(color: primaryColor.withOpacity(0.10)),
+                    border: Border.all(color: primaryColor.withOpacity(0.14)),
                   ),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -315,7 +316,7 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(color: primaryColor, width: 2),
-                          color: primaryColor.withOpacity(0.08),
+                          color: primaryColor.withOpacity(0.10),
                         ),
                         child: Icon(
                           Icons.person,
@@ -327,13 +328,13 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                       Text(
                         displayName,
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w900,
-                          color: textColor,
-                        ),
+                              fontWeight: FontWeight.w900,
+                              color: textColor,
+                            ),
                       ),
                       const SizedBox(height: 16),
 
-                      // ✅ Increase QR size (was 220) -> 300
+                      // QR
                       Container(
                         width: 240,
                         height: 240,
@@ -355,7 +356,7 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       color: (_error != null)
-                                          ? Colors.red[400]
+                                          ? cs.error
                                           : Colors.black87,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -366,7 +367,6 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                                   version: QrVersions.auto,
                                   backgroundColor: Colors.white,
                                   gapless: true,
-                                  // ✅ Lower error correction => less dense => easier scan
                                   errorCorrectionLevel: QrErrorCorrectLevel.L,
                                 ),
                         ),
@@ -380,10 +380,10 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                           vertical: 10,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.10),
+                          color: primaryColor.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(
-                            color: primaryColor.withOpacity(0.14),
+                            color: primaryColor.withOpacity(0.18),
                           ),
                         ),
                         child: Row(
@@ -416,10 +416,10 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                           vertical: 12,
                         ),
                         decoration: BoxDecoration(
-                          color: primaryColor.withOpacity(0.08),
+                          color: Colors.white.withOpacity(0.10),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                            color: primaryColor.withOpacity(0.14),
+                            color: primaryColor.withOpacity(0.18),
                           ),
                         ),
                         child: Row(
@@ -459,9 +459,7 @@ class _KeyGenerationPageState extends State<KeyGenerationPage> {
                         child: Text(
                           'Change Key',
                           style: TextStyle(
-                            color: isDark
-                                ? const Color(0xFF7CB7FF)
-                                : const Color(0xFF2F63FF),
+                            color: cs.primary, // ✅ follow theme
                             fontWeight: FontWeight.w900,
                           ),
                         ),

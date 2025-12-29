@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import 'cryptomanager.dart';
 import 'theme/theme_provider.dart';
+import 'inbox_page.dart';
+import 'ui/encryption_widgets.dart';
 
 class DecryptionPage extends StatefulWidget {
   final String? initialCiphertext;
@@ -91,7 +93,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
     _senderKeyActive = widget.senderKeyIsActive ?? false;
     _senderKeyExpired = widget.senderKeyIsExpired ?? false;
 
-    // ✅ If inbox already provides a pubkey, treat as verified unless explicitly expired.
     if (_senderPubController.text.trim().isNotEmpty &&
         (widget.senderKeyIsExpired != true)) {
       _senderKeyActive = true;
@@ -117,7 +118,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
     return _digitsOnly(s);
   }
 
-  // ---------- validation helpers ----------
   bool _isProbablyBase64(String s) {
     final t = s.trim();
     if (t.isEmpty) return false;
@@ -165,24 +165,43 @@ class _DecryptionPageState extends State<DecryptionPage> {
   Future<bool> _confirmProceedUnverified() async {
     return await showDialog<bool>(
           context: context,
-          builder: (ctx) => AlertDialog(
-            title: const Text('Unverified / Old key'),
-            content: const Text(
-              'This key is marked OLD/EXPIRED or not verified.\n\n'
-              'You can proceed, but only if you trust this public key really belongs '
-              'to the sender (otherwise you may decrypt a wrong message/key).',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
+          builder: (ctx) {
+            final cs = Theme.of(ctx).colorScheme;
+            final isDark = Theme.of(ctx).brightness == Brightness.dark;
+            final fg = isDark ? Colors.white : Colors.black87;
+
+            return AlertDialog(
+              backgroundColor: cs.surface,
+              title: Text(
+                'Unverified / Old key',
+                style: TextStyle(color: fg, fontWeight: FontWeight.w900),
               ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(ctx, true),
-                child: const Text('Proceed'),
+              content: Text(
+                'This key is marked OLD/EXPIRED or not verified.\n\n'
+                'You can proceed, but only if you trust this public key really belongs '
+                'to the sender (otherwise you may decrypt a wrong message/key).',
+                style: TextStyle(color: fg.withOpacity(0.85), height: 1.35),
               ),
-            ],
-          ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: Text('Cancel', style: TextStyle(color: fg)),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: const Text('Proceed'),
+                ),
+              ],
+            );
+          },
         ) ??
         false;
   }
@@ -201,7 +220,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
       if (mounted) _showError('Error loading private key: $e');
     }
 
-    // if sender pub missing, try resolve from storage by senderJid
     if (_senderPubController.text.trim().isEmpty &&
         (widget.senderJid ?? '').isNotEmpty) {
       await _tryAutoResolveSenderFromStorage(widget.senderJid!);
@@ -214,9 +232,8 @@ class _DecryptionPageState extends State<DecryptionPage> {
 
     try {
       final all = await _storage.readAll();
-      final entries = all.entries
-          .where((e) => e.key.startsWith('wa_shield_contact_'))
-          .toList();
+      final entries =
+          all.entries.where((e) => e.key.startsWith('wa_shield_contact_')).toList();
 
       Map<String, dynamic>? best;
       DateTime bestSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -232,8 +249,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
           final storedDigits = _digitsOnly(storedPhone);
           if (storedDigits.isEmpty) continue;
 
-          final match =
-              storedDigits == digits ||
+          final match = storedDigits == digits ||
               digits.contains(storedDigits) ||
               storedDigits.contains(digits);
           if (!match) continue;
@@ -277,15 +293,11 @@ class _DecryptionPageState extends State<DecryptionPage> {
           _senderPhone =
               _digitsOnly(phone).isNotEmpty ? _digitsOnly(phone) : _senderPhone;
           _senderFingerprint = fp;
-
-          // resolved from storage => known contact
           _senderKeyActive = true;
           _senderKeyExpired = false;
         });
       }
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) {}
   }
 
   void _showError(String msg) {
@@ -302,6 +314,13 @@ class _DecryptionPageState extends State<DecryptionPage> {
     if (_outputText.trim().isEmpty) return;
     Clipboard.setData(ClipboardData(text: _outputText));
     _showOk('Copied to clipboard');
+  }
+
+  Future<void> _pasteCiphertext() async {
+    final data = await Clipboard.getData('text/plain');
+    final txt = data?.text ?? '';
+    if (txt.trim().isEmpty) return;
+    setState(() => _cipherController.text = txt.trim());
   }
 
   void _clearAll() {
@@ -323,7 +342,6 @@ class _DecryptionPageState extends State<DecryptionPage> {
     setState(() => _busy = true);
 
     try {
-      // 1) My private key exists + format
       if (_myPrivateKeyBase64.trim().isEmpty) {
         _showError('Private key not loaded. Generate keys first.');
         return;
@@ -335,20 +353,16 @@ class _DecryptionPageState extends State<DecryptionPage> {
         return;
       }
 
-      // 2) Sender public key format
       final senderPub = _senderPubController.text.trim();
       if (senderPub.isEmpty) {
         _showError('Sender public key is empty.');
         return;
       }
       if (!_isBase64OfLen(senderPub, 32)) {
-        _showError(
-          'Sender public key invalid. Expected Base64 of 32 bytes (X25519).',
-        );
+        _showError('Sender public key invalid. Expected Base64 of 32 bytes (X25519).');
         return;
       }
 
-      // 3) Ciphertext format
       final cipher = _cipherController.text.trim();
       if (cipher.isEmpty) {
         _showError('Encrypted payload is empty.');
@@ -369,14 +383,12 @@ class _DecryptionPageState extends State<DecryptionPage> {
         return;
       }
 
-      // 4) OLD/EXPIRED handling: warn instead of hard block
       final isUnverified = (_senderKeyExpired || !_senderKeyActive);
       if (isUnverified) {
         final proceed = await _confirmProceedUnverified();
         if (!proceed) return;
       }
 
-      // 5) Decrypt
       final sharedSecretBase64 =
           await CryptoManager.computeSharedSecretAesKeyBase64(senderPub);
 
@@ -401,7 +413,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
         _showError(
           'AUTH FAIL (tampered / wrong key / wrong account).\n'
           '• Make sure you are using the sender account public key\n'
-          '• Re-scan sender QR (latest)\n'
+          '• Re-scan sender QR (latest)\n',
         );
         return;
       }
@@ -416,14 +428,13 @@ class _DecryptionPageState extends State<DecryptionPage> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
+        final cs = Theme.of(context).colorScheme;
 
-        final primaryColor =
-            isDark ? const Color(0xFF8B9D3F) : const Color(0xFF6B8E23);
-        final pageBg =
-            isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFF8EF);
-        final cardBg = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+        final primaryColor = cs.primary;
+        final pageBg = Theme.of(context).scaffoldBackgroundColor;
+        final cardBg = cs.surface;
         final textColor = isDark ? Colors.white : Colors.black87;
-        final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
+        final hintColor = isDark ? Colors.white60 : Colors.black45;
 
         final statusText = (_senderPubController.text.trim().isEmpty)
             ? 'UNKNOWN'
@@ -434,7 +445,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
         final statusColor = (_senderPubController.text.trim().isEmpty)
             ? Colors.grey
             : (_senderKeyExpired || !_senderKeyActive)
-                ? Colors.red
+                ? cs.error
                 : primaryColor;
 
         return Scaffold(
@@ -443,6 +454,16 @@ class _DecryptionPageState extends State<DecryptionPage> {
             backgroundColor: pageBg,
             elevation: 0,
             centerTitle: true,
+
+            // ✅ back button (top-left) in circle
+            leading: Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: _CircleTopButton(
+                icon: Icons.arrow_back,
+                onTap: () => Navigator.pop(context),
+              ),
+            ),
+
             title: Text(
               'Decrypt',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -450,74 +471,60 @@ class _DecryptionPageState extends State<DecryptionPage> {
                     color: textColor,
                   ),
             ),
+
+            // ✅ inbox button (top-right) in circle
+            actions: [
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: _CircleTopButton(
+                  icon: Icons.inbox_outlined,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const InboxPage()),
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
+
           bottomNavigationBar: SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    height: 52,
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _busy ? null : _performDecryption,
-                      icon: _busy
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.lock_open, size: 20),
-                      label: const Text(
-                        'Decrypt',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        elevation: 0,
-                      ),
-                    ),
+              child: SizedBox(
+                height: 58,
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _busy ? null : _performDecryption,
+                  icon: _busy
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(Icons.lock_open, size: 22),
+                  label: const Text(
+                    'Decrypt',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
                   ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 52,
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _clearAll,
-                      icon: const Icon(Icons.clear_all, size: 20),
-                      label: Text(
-                        'Clear',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.18)
-                              : primaryColor.withOpacity(0.35),
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        backgroundColor: cardBg,
-                      ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
                     ),
+                    elevation: 0,
                   ),
-                ],
+                ),
               ),
             ),
           ),
+
           body: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
             child: Column(
@@ -586,6 +593,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(999),
                           color: statusColor.withOpacity(0.14),
+                          border: Border.all(
+                            color: statusColor.withOpacity(0.25),
+                          ),
                         ),
                         child: Text(
                           statusText,
@@ -599,19 +609,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
-                _sectionLabel('Ciphertext', textColor),
-                const SizedBox(height: 8),
-                _textCardField(
-                  bg: cardBg,
-                  primaryColor: primaryColor,
-                  textColor: textColor,
-                  hintColor: hintColor,
-                  controller: _cipherController,
-                  hintText: 'Paste encrypted payload here...',
-                  maxLines: 5,
-                ),
-                const SizedBox(height: 18),
+
+                const SizedBox(height: 14),
+
                 _sectionLabel('Sender Public Key', textColor),
                 const SizedBox(height: 8),
                 _textCardField(
@@ -623,7 +623,51 @@ class _DecryptionPageState extends State<DecryptionPage> {
                   hintText: 'Paste sender x25519 public key...',
                   maxLines: 2,
                 ),
+
                 const SizedBox(height: 18),
+
+                _sectionLabel('Ciphertext', textColor),
+                const SizedBox(height: 8),
+                _textCardField(
+                  bg: cardBg,
+                  primaryColor: primaryColor,
+                  textColor: textColor,
+                  hintColor: hintColor,
+                  controller: _cipherController,
+                  hintText: 'Paste encrypted payload here...',
+                  maxLines: 5,
+                ),
+
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    SmallChipButton(
+                      label: 'Paste',
+                      icon: Icons.paste,
+                      bg: cardBg,
+                      fg: textColor,
+                      border: isDark
+                          ? Colors.white.withOpacity(0.14)
+                          : primaryColor.withOpacity(0.25),
+                      onTap: _pasteCiphertext,
+                    ),
+                    const SizedBox(width: 10),
+                    SmallChipButton(
+                      label: 'Clear',
+                      icon: Icons.clear,
+                      bg: cardBg,
+                      fg: textColor,
+                      border: isDark
+                          ? Colors.white.withOpacity(0.14)
+                          : primaryColor.withOpacity(0.25),
+                      onTap: _clearAll,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+
                 if (_outputText.isNotEmpty) ...[
                   _sectionLabel(_outputLabel, textColor),
                   const SizedBox(height: 8),
@@ -639,11 +683,12 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       children: [
                         SelectableText(
                           _outputText,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: textColor,
-                                fontFamily: 'monospace',
-                                height: 1.35,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: textColor,
+                                    fontFamily: 'monospace',
+                                    height: 1.35,
+                                  ),
                         ),
                         const SizedBox(height: 12),
                         Align(
@@ -714,6 +759,48 @@ class _DecryptionPageState extends State<DecryptionPage> {
         ),
         style: TextStyle(color: textColor),
         cursorColor: primaryColor,
+      ),
+    );
+  }
+}
+
+// ✅ Reusable circle button for AppBar (uses theme colors)
+class _CircleTopButton extends StatelessWidget {
+  const _CircleTopButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bg = cs.surface;
+    final fg = isDark ? Colors.white : Colors.black87;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: bg,
+          shape: BoxShape.circle,
+          border: Border.all(color: cs.primary.withOpacity(0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: cs.primary.withOpacity(isDark ? 0.10 : 0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Icon(icon, color: fg, size: 20),
       ),
     );
   }

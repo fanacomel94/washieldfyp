@@ -190,8 +190,7 @@ class _NavItemState extends State<_NavItem>
           duration: const Duration(milliseconds: 300),
           curve: Curves.easeInOut,
 
-          // ✅ FIX: remove vertical padding to prevent height squeeze
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
 
           decoration: BoxDecoration(
             gradient: widget.isActive
@@ -201,7 +200,7 @@ class _NavItemState extends State<_NavItem>
                     colors: [widget.primaryColor, widget.tertiaryColor],
                   )
                 : null,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(15),
             boxShadow: widget.isActive
                 ? [
                     BoxShadow(
@@ -227,8 +226,7 @@ class _NavItemState extends State<_NavItem>
                   key: ValueKey<bool>(widget.isActive),
                   color: widget.isActive ? Colors.white : _getInactiveIconColor(),
 
-                  // ✅ FIX: slightly smaller icon
-                  size: 22,
+                  size: 26,
                 ),
               ),
 

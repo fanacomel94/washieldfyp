@@ -192,11 +192,11 @@ class _AppDrawerState extends State<AppDrawer> {
   void _showHelp() {
     final tips = [
       '⚠️ Important Notes',
-      'WAShield never reads or stores your messages',
-      'If you change your key, contacts must scan again',
-      'Do not share screenshots of private keys',
-      'Only scan QR codes from trusted contacts',
-      'Expired or invalid QR codes will be rejected automatically',
+      '🔒 WAShield never reads or stores your messages',
+      '🔄 If you change your key, contacts must scan again',
+      '🚫 Never share screenshots of private keys',
+      '🤝 Only scan QR codes from trusted contacts',
+      '⏳ Expired or invalid QR codes are rejected automatically',
     ]..shuffle();
 
     showDialog(
@@ -216,11 +216,16 @@ class _AppDrawerState extends State<AppDrawer> {
 
   void _showAbout() {
     const text =
-        'WAShield encrypts data BEFORE sending.\n\n'
-        '• ECC (X25519 + ECDH)\n'
-        '• HKDF-SHA256\n'
-        '• AES-256-GCM\n'
-        '• Optional Ed25519 signatures';
+        '🛡️ WAShield – Secure Messaging Companion\n\n'
+        'WAShield encrypts messages BEFORE they leave your device. '
+        'No plaintext is stored, logged, or read by WAShield.\n\n'
+        '🔐 Cryptography Stack\n'
+        '• 🔑 ECC (X25519 + ECDH) for secure key exchange\n'
+        '• 🧂 HKDF-SHA256 for strong key derivation\n'
+        '• 🔒 AES-256-GCM for authenticated encryption\n'
+        '• ✍️ Optional Ed25519 signatures for identity verification\n\n'
+        
+      '🎓 Built as a Final Year Project by Norfarhana Mohd Yatim';
 
     showDialog(
       context: context,
@@ -280,9 +285,20 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    // ✅ Use colors from app_theme via colorScheme
+    final primaryColor = colorScheme.primary;
+    final surfaceColor = colorScheme.surface;
+    final textColor = theme.textTheme.bodyLarge?.color ?? Colors.black87;
+    final dividerColor = isDark
+        ? Colors.white.withOpacity(0.12)
+        : Colors.black.withOpacity(0.12);
 
     return Drawer(
       width: 320,
+      backgroundColor: surfaceColor,
       child: SafeArea(
         child: Column(
           children: [
@@ -293,14 +309,10 @@ class _AppDrawerState extends State<AppDrawer> {
               onTap: _avatarMenu,
               child: CircleAvatar(
                 radius: 42,
-                backgroundColor: theme.colorScheme.primaryContainer,
+                backgroundColor: primaryColor.withOpacity(0.15),
                 backgroundImage: _avatarImage(),
                 child: _avatarImage() == null
-                    ? Icon(
-                        Icons.person,
-                        size: 40,
-                        color: theme.colorScheme.onPrimaryContainer,
-                      )
+                    ? Icon(Icons.person, size: 40, color: primaryColor)
                     : null,
               ),
             ),
@@ -314,6 +326,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 _username,
                 style: theme.textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
+                  color: textColor,
                 ),
               ),
             ),
@@ -326,22 +339,46 @@ class _AppDrawerState extends State<AppDrawer> {
               child: Text(
                 _phone.isEmpty ? 'Tap to add phone' : _phone,
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
+                  color: textColor.withOpacity(0.7),
                 ),
               ),
             ),
 
             const SizedBox(height: 16),
-            Divider(),
+            Divider(color: dividerColor),
 
-            _item(Icons.help_outline, 'Help', _showHelp),
-            _item(Icons.info_outline, 'About Us', _showAbout),
-            _item(Icons.logout, 'Log Out', _logout, danger: true),
+            _item(
+              Icons.help_outline,
+              'Help',
+              _showHelp,
+              primaryColor: primaryColor,
+              textColor: textColor,
+            ),
+            _item(
+              Icons.info_outline,
+              'About Us',
+              _showAbout,
+              primaryColor: primaryColor,
+              textColor: textColor,
+            ),
+            _item(
+              Icons.logout,
+              'Log Out',
+              _logout,
+              primaryColor: primaryColor,
+              textColor: textColor,
+              danger: true,
+            ),
 
             const Spacer(),
-            const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: Text('v1.0 • WAShield'),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'v1.0 • WAShield',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: textColor.withOpacity(0.6),
+                ),
+              ),
             ),
           ],
         ),
@@ -354,10 +391,17 @@ class _AppDrawerState extends State<AppDrawer> {
     String title,
     VoidCallback onTap, {
     bool danger = false,
+    required Color primaryColor,
+    required Color textColor,
   }) {
+    final itemColor = danger ? Colors.red : primaryColor;
+
     return ListTile(
-      leading: Icon(icon, color: danger ? Colors.red : null),
-      title: Text(title, style: TextStyle(color: danger ? Colors.red : null)),
+      leading: Icon(icon, color: itemColor),
+      title: Text(
+        title,
+        style: TextStyle(color: itemColor, fontWeight: FontWeight.w600),
+      ),
       onTap: onTap,
     );
   }

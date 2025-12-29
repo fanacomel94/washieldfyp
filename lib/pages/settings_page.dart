@@ -37,7 +37,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 children: [
                   // Header
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+                    padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

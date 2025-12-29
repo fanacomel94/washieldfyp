@@ -16,7 +16,8 @@ class RegisterPage extends StatefulWidget {
 
 class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController(text: '60');
+  final TextEditingController _phoneController =
+      TextEditingController(text: '60');
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final Uuid _uuid = const Uuid();
@@ -59,12 +60,15 @@ class _RegisterPageState extends State<RegisterPage> {
     setState(() => _saving = true);
 
     try {
-      final existingUserId = await _secureStorage.read(key: 'wa_shield_user_id');
+      final existingUserId =
+          await _secureStorage.read(key: 'wa_shield_user_id');
       final userId = existingUserId ?? _uuid.v4();
 
       await _secureStorage.write(key: 'wa_shield_user_id', value: userId);
-      await _secureStorage.write(key: 'wa_shield_my_phone', value: phoneDigitsOnly);
-      await _secureStorage.write(key: 'wa_shield_my_username', value: username);
+      await _secureStorage.write(
+          key: 'wa_shield_my_phone', value: phoneDigitsOnly);
+      await _secureStorage.write(
+          key: 'wa_shield_my_username', value: username);
 
       await _secureStorage.write(
         key: 'wa_client_id',
@@ -107,11 +111,14 @@ class _RegisterPageState extends State<RegisterPage> {
   InputDecoration _fieldDecoration({
     required String hint,
     required Color borderColor,
+    required Color fillColor,
+    required Color hintColor,
   }) {
     return InputDecoration(
       hintText: hint,
+      hintStyle: TextStyle(color: hintColor),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: fillColor,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
@@ -132,26 +139,36 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, _) {
-        // You asked: light green background (like screenshot)
-        const bg = Color(0xFFD9F9CC);
-        const brandGreen = Color(0xFF0B8F3A);
+        final isDark = themeProvider.isDarkMode;
+        final cs = Theme.of(context).colorScheme;
 
-        // Optional: keep your theme toggle action, but match the clean layout
+        // ✅ Use AppTheme (Theme.of(context))
+        final pageBg = Theme.of(context).scaffoldBackgroundColor;
+        final primary = cs.primary;
+        final surface = cs.surface;
+
+        final fg = isDark ? Colors.white : Colors.black87;
+        final subFg = fg.withOpacity(isDark ? 0.70 : 0.55);
+        final hint = fg.withOpacity(isDark ? 0.55 : 0.45);
+
+        // Slight contrast: input fields should look "card-ish"
+        final fieldFill = isDark ? cs.surface : Colors.white;
+
         return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: const SystemUiOverlayStyle(
-            statusBarBrightness: Brightness.light,
-            statusBarIconBrightness: Brightness.dark,
+          value: SystemUiOverlayStyle(
+            statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+            statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
           ),
           child: Scaffold(
-            backgroundColor: bg,
+            backgroundColor: pageBg,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
               centerTitle: true,
-              title: const Text(
-                'Create Account',
+              title: Text(
+                'Set Up Account',
                 style: TextStyle(
-                  color: brandGreen,
+                  color: primary,
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -159,10 +176,8 @@ class _RegisterPageState extends State<RegisterPage> {
                 IconButton(
                   tooltip: 'Toggle theme',
                   icon: Icon(
-                    themeProvider.isDarkMode
-                        ? Icons.light_mode_outlined
-                        : Icons.dark_mode_outlined,
-                    color: brandGreen,
+                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    color: primary,
                   ),
                   onPressed: () => themeProvider.toggleTheme(),
                 ),
@@ -171,21 +186,25 @@ class _RegisterPageState extends State<RegisterPage> {
             body: SafeArea(
               child: Center(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
                     child: Container(
                       padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: surface,
                         borderRadius: BorderRadius.circular(22),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withOpacity(isDark ? 0.18 : 0.08),
                             blurRadius: 18,
                             offset: const Offset(0, 10),
                           ),
                         ],
+                        border: Border.all(
+                          color: primary.withOpacity(isDark ? 0.18 : 0.10),
+                        ),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -194,55 +213,52 @@ class _RegisterPageState extends State<RegisterPage> {
                           Center(
                             child: Image.asset(
                               'assets/images/LOGO_WASHIELD.png',
-                              width: 200, // 🔥 increase image size
-                              height: 70, // 🔥 increase image size
+                              width: 220,
+                              height: 78,
                               fit: BoxFit.contain,
                             ),
                           ),
-
-
                           const SizedBox(height: 14),
-
-                          
                           Center(
                             child: Text(
                               'Join us today and get started',
                               style: TextStyle(
-                                color: Colors.black.withOpacity(0.55),
+                                color: subFg,
                                 fontSize: 14,
-                                fontWeight: FontWeight.w500,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 22),
 
                           // Username
-                          const Text(
+                          Text(
                             'Username',
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              fontWeight: FontWeight.w800,
+                              color: fg,
                             ),
                           ),
                           const SizedBox(height: 8),
                           TextField(
                             controller: _usernameController,
                             textInputAction: TextInputAction.next,
+                            style: TextStyle(color: fg, fontWeight: FontWeight.w600),
                             decoration: _fieldDecoration(
                               hint: 'Enter your username',
-                              borderColor: brandGreen,
+                              borderColor: primary,
+                              fillColor: fieldFill,
+                              hintColor: hint,
                             ),
                           ),
-
                           const SizedBox(height: 16),
 
                           // WhatsApp Number
-                          const Text(
+                          Text(
                             'WhatsApp Number',
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              fontWeight: FontWeight.w800,
+                              color: fg,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -250,39 +266,42 @@ class _RegisterPageState extends State<RegisterPage> {
                             controller: _phoneController,
                             keyboardType: TextInputType.number,
                             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                            style: TextStyle(color: fg, fontWeight: FontWeight.w600),
                             decoration: _fieldDecoration(
-                              hint: '+60 12-345 6789',
-                              borderColor: brandGreen,
+                              hint: 'Example: 60123456789',
+                              borderColor: primary,
+                              fillColor: fieldFill,
+                              hintColor: hint,
                             ),
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'Include country code (e.g., +60)',
+                            'Include country code (e.g., 60)',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.black.withOpacity(0.45),
-                              fontWeight: FontWeight.w500,
+                              color: subFg,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-
                           const SizedBox(height: 16),
 
                           // Session Option (client)
-                          const Text(
+                          Text(
                             'Session Option',
                             style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black87,
+                              fontWeight: FontWeight.w800,
+                              color: fg,
                             ),
                           ),
                           const SizedBox(height: 8),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 4),
                             decoration: BoxDecoration(
-                              color: Colors.white,
+                              color: fieldFill,
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: brandGreen.withOpacity(0.35),
+                                color: primary.withOpacity(0.35),
                                 width: 1.4,
                               ),
                             ),
@@ -290,7 +309,15 @@ class _RegisterPageState extends State<RegisterPage> {
                               child: DropdownButton<int>(
                                 value: _selectedClientId,
                                 isExpanded: true,
-                                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                                dropdownColor: fieldFill,
+                                icon: Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  color: fg.withOpacity(0.75),
+                                ),
+                                style: TextStyle(
+                                  color: fg,
+                                  fontWeight: FontWeight.w700,
+                                ),
                                 items: const [
                                   DropdownMenuItem(
                                     value: 1,
@@ -319,7 +346,7 @@ class _RegisterPageState extends State<RegisterPage> {
                             child: ElevatedButton(
                               onPressed: _saving ? null : _save,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: brandGreen,
+                                backgroundColor: primary,
                                 foregroundColor: Colors.white,
                                 elevation: 0,
                                 shape: RoundedRectangleBorder(
@@ -336,7 +363,7 @@ class _RegisterPageState extends State<RegisterPage> {
                                       ),
                                     )
                                   : const Text(
-                                      'Register',
+                                      'Confirm',
                                       style: TextStyle(
                                         fontWeight: FontWeight.w800,
                                         fontSize: 16,
@@ -353,11 +380,12 @@ class _RegisterPageState extends State<RegisterPage> {
                             child: OutlinedButton(
                               onPressed: _saving ? null : _startWithoutRegister,
                               style: OutlinedButton.styleFrom(
-                                foregroundColor: brandGreen,
-                                side: const BorderSide(color: brandGreen, width: 2),
+                                foregroundColor: primary,
+                                side: BorderSide(color: primary, width: 2),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14),
                                 ),
+                                backgroundColor: Colors.transparent,
                               ),
                               child: const Text(
                                 'Start',

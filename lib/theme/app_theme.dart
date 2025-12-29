@@ -1,48 +1,60 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static ThemeData light() {
-    const oliveGreen = Color(0xFF6B8E23);
-    const white = Color(0xFFFFFFFF);
+  // 🌿 Green palette (dark teal → mint)
+  static const Color gDarkest   = Color(0xFF031F20);
+  static const Color gDark2     = Color(0xFF0C3A3B);
+  static const Color gDark3     = Color(0xFF146B59);
+  static const Color gMid       = Color(0xFF2A8767);
+  static const Color gMidLight  = Color(0xFF3CA771);
+  static const Color gLight2    = Color(0xFF52C678);
+  static const Color gLightest  = Color.fromARGB(255, 197, 233, 209);
 
+  /// 🌞 LIGHT THEME
+  static ThemeData light() {
     return ThemeData(
       brightness: Brightness.light,
       useMaterial3: true,
+
       colorScheme: const ColorScheme.light(
-        primary: oliveGreen,
-        secondary: oliveGreen,
-        tertiary: Color(0xFF8B9D3F),
-        surface: white,
+        primary: gDark3,          // main actions
+        secondary: gMid,   // secondary buttons
+        tertiary: gLight2,      // accents
+        surface: Color.fromARGB(255, 246, 249, 247),     // cards/sheets
+        background: gLightest,
         error: Color(0xFFB3261E),
       ),
-      scaffoldBackgroundColor: white,
+
+      scaffoldBackgroundColor: gLightest,
+
       appBarTheme: const AppBarTheme(
-        backgroundColor: oliveGreen,
-        foregroundColor: white,
+        backgroundColor: gLightest,
+        foregroundColor: gDark3,
         elevation: 0,
       ),
     );
   }
 
+  /// 🌙 DARK THEME
   static ThemeData dark() {
-    const oliveGreen = Color(0xFF8B9D3F);
-    const grey = Color(0xFF2C2C2C);
-    const darkGreyBg = Color(0xFF1A1A1A);
-
     return ThemeData(
       brightness: Brightness.dark,
       useMaterial3: true,
+
       colorScheme: const ColorScheme.dark(
-        primary: oliveGreen,
-        secondary: oliveGreen,
-        tertiary: Color(0xFFAABF3F),
-        surface: grey,
+        primary: gLight2,       // buttons pop in dark
+        secondary: gMidLight,   // accents
+        tertiary: gLightest,    // highlights
+        surface: gDark2,        // cards/nav
+        background: gDarkest,
         error: Color(0xFFF2B8B5),
       ),
-      scaffoldBackgroundColor: darkGreyBg,
+
+      scaffoldBackgroundColor: gDarkest,
+
       appBarTheme: const AppBarTheme(
-        backgroundColor: grey,
-        foregroundColor: oliveGreen,
+        backgroundColor: gDark2,
+        foregroundColor: gLight2,
         elevation: 0,
       ),
     );

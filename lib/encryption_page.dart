@@ -159,10 +159,10 @@ class _EncryptionPageState extends State<EncryptionPage> {
           return Consumer<ThemeProvider>(
             builder: (context, themeProvider, child) {
               final isDark = themeProvider.isDarkMode;
-              final primaryColor =
-                  isDark ? const Color(0xFF8B9D3F) : const Color(0xFF6B8E23);
-              final surfaceColor =
-                  isDark ? const Color(0xFF2C2C2C) : Colors.white;
+              final cs = Theme.of(context).colorScheme;
+
+              final primaryColor = cs.primary;
+              final surfaceColor = cs.surface;
               final textColor = isDark ? Colors.white : Colors.black87;
 
               return Container(
@@ -212,7 +212,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
                           return ListTile(
                             enabled: c.isActive && !c.isExpired,
                             leading: CircleAvatar(
-                              backgroundColor: primaryColor.withOpacity(0.2),
+                              backgroundColor: primaryColor.withOpacity(0.18),
                               child: Icon(Icons.person, color: primaryColor),
                             ),
                             title: Row(
@@ -295,7 +295,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
 
         setState(() {
           _recipientPublicKeyController.text = selected.publicKeyBase64;
-          _receiverPhoneController.text = selected.phone;
+          _receiverPhoneController.text = selected.phone; // ✅ used for send
           _toDisplayName =
               selected.username.isNotEmpty ? selected.username : 'Receiver';
           _toDisplayPhone = selected.phone;
@@ -355,7 +355,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
 
     setState(() => _busySend = true);
     try {
-      // ✅ CHANGED: clientId from secure storage
       final clientId = await _getClientId();
 
       final pre = _flow!.validateSend(
@@ -386,23 +385,22 @@ class _EncryptionPageState extends State<EncryptionPage> {
     return Consumer<ThemeProvider>(
       builder: (context, themeProvider, child) {
         final isDark = themeProvider.isDarkMode;
-        final primaryColor =
-            isDark ? const Color(0xFF8B9D3F) : const Color(0xFF6B8E23);
+        final cs = Theme.of(context).colorScheme;
 
-        final pageBg =
-            isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEFF8EF);
-        final cardBg = isDark ? const Color(0xFF2C2C2C) : Colors.white;
+        // ✅ Theme-based colors (AppTheme)
+        final primaryColor = cs.primary;
+        final pageBg = Theme.of(context).scaffoldBackgroundColor;
+        final cardBg = cs.surface;
         final textColor = isDark ? Colors.white : Colors.black87;
+        final hintColor = isDark ? Colors.white60 : Colors.black45;
 
         if (!_ready) {
           return Scaffold(
             backgroundColor: pageBg,
             appBar: AppBar(
-              backgroundColor: pageBg,
-              elevation: 0,
               centerTitle: true,
               title: Text(
-                'Encrypt',
+                'Encrypt Message',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w800,
                       color: textColor,
@@ -432,8 +430,6 @@ class _EncryptionPageState extends State<EncryptionPage> {
           );
         }
 
-        final hintColor = isDark ? Colors.grey[500] : Colors.grey[600];
-
         final bool hasContact =
             _recipientPublicKeyController.text.trim().isNotEmpty &&
                 _receiverPhoneController.text.trim().isNotEmpty;
@@ -447,14 +443,15 @@ class _EncryptionPageState extends State<EncryptionPage> {
         final Color statusColor = _outputText.trim().isNotEmpty
             ? primaryColor
             : hasContact
-                ? primaryColor.withOpacity(0.8)
-                : Colors.red;
+                ? primaryColor.withOpacity(0.85)
+                : cs.error;
+
+        // ✅ show phone field ONLY when no contact selected (your request)
+        final bool contactSelected = hasContact;
 
         return Scaffold(
           backgroundColor: pageBg,
           appBar: AppBar(
-            backgroundColor: pageBg,
-            elevation: 0,
             leading: Padding(
               padding: const EdgeInsets.only(left: 10),
               child: CircleIconButton(
@@ -498,151 +495,103 @@ class _EncryptionPageState extends State<EncryptionPage> {
               ),
             ],
           ),
+
+          // ✅ BUTTONS SIDE BY SIDE + WhatsApp icon button with asset image
           bottomNavigationBar: SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
                 children: [
-                  SizedBox(
-                    height: 52,
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _busyEncrypt ? null : _performEncryption,
-                      icon: _busyEncrypt
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(Icons.lock, size: 20),
-                      label: const Text(
-                        'Encrypt Your Secret Message',
-                        style: TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                  Expanded(
+                    child: SizedBox(
+                      height: 52,
+                      child: ElevatedButton.icon(
+                        onPressed: _busyEncrypt ? null : _performEncryption,
+                        icon: _busyEncrypt
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.lock, size: 20),
+                        label: const Text(
+                          'Encrypt',
+                          style: TextStyle(fontWeight: FontWeight.w800),
                         ),
-                        elevation: 0,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          elevation: 0,
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(width: 12),
                   SizedBox(
                     height: 52,
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
+                    width: 60, // icon button
+                    child: OutlinedButton(
                       onPressed: _busySend ? null : _sendCiphertextToWhatsApp,
-                      icon: _busySend
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.chat_bubble_outline, size: 20),
-                      label: Text(
-                        'Send via WhatsApp',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: textColor,
-                        ),
-                      ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
                           color: isDark
-                              ? Colors.white.withOpacity(0.18)
+                              ? Colors.white.withOpacity(0.16)
                               : primaryColor.withOpacity(0.35),
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
                         ),
                         backgroundColor: cardBg,
+                        padding: EdgeInsets.zero,
                       ),
+                      child: _busySend
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Image.asset(
+                              'assets/images/whatsapp_img.png',
+                              width: 26,
+                              height: 26,
+                              fit: BoxFit.contain,
+                            ),
                     ),
                   ),
                 ],
               ),
             ),
           ),
-          body: Container(
-            color: pageBg,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  sectionLabel('To', textColor),
-                  const SizedBox(height: 8),
-                  ContactCard(
-                    bg: cardBg,
-                    title: _toDisplayName,
-                    subtitle: _toDisplayPhone,
-                    primaryColor: primaryColor,
-                    titleColor: textColor,
-                    subtitleColor: isDark ? Colors.grey[400]! : Colors.grey[700]!,
-                    onSelect: _selectSavedContact,
-                  ),
-                  const SizedBox(height: 18),
-                  sectionLabel('Receiver key', textColor),
-                  const SizedBox(height: 8),
-                  TextCardField(
-                    bg: cardBg,
-                    primaryColor: primaryColor,
-                    textColor: textColor,
-                    hintColor: hintColor,
-                    controller: _recipientPublicKeyController,
-                    hintText: 'Select contact to fill public key',
-                    suffixIcon: Icons.key,
-                    onSuffixTap: _selectSavedContact,
-                  ),
-                  const SizedBox(height: 18),
-                  sectionLabel('Message', textColor),
-                  const SizedBox(height: 8),
-                  TextCardField(
-                    bg: cardBg,
-                    primaryColor: primaryColor,
-                    textColor: textColor,
-                    hintColor: hintColor,
-                    controller: _messageController,
-                    hintText: 'Enter your secure message here...',
-                    maxLines: 5,
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      SmallChipButton(
-                        label: 'Paste',
-                        icon: Icons.paste,
-                        bg: cardBg,
-                        fg: textColor,
-                        border: isDark
-                            ? Colors.white.withOpacity(0.14)
-                            : primaryColor.withOpacity(0.25),
-                        onTap: _pasteMessage,
-                      ),
-                      const SizedBox(width: 10),
-                      SmallChipButton(
-                        label: 'Clear',
-                        icon: Icons.clear,
-                        bg: cardBg,
-                        fg: textColor,
-                        border: isDark
-                            ? Colors.white.withOpacity(0.14)
-                            : primaryColor.withOpacity(0.25),
-                        onTap: _clearAll,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  sectionLabel('Receiver Phone (E.164)', textColor),
+
+          body: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(18, 12, 18, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                sectionLabel('To', textColor),
+                const SizedBox(height: 8),
+                ContactCard(
+                  bg: cardBg,
+                  title: _toDisplayName,
+                  subtitle: _toDisplayPhone,
+                  primaryColor: primaryColor,
+                  titleColor: textColor,
+                  subtitleColor: textColor.withOpacity(0.7),
+                  onSelect: _selectSavedContact,
+                ),
+
+                // ✅ Phone field moved HERE (below Select Contact)
+                // ✅ Hidden when contact is selected
+                if (!contactSelected) ...[
+                  const SizedBox(height: 14),
+                  sectionLabel('Receiver Phone', textColor),
                   const SizedBox(height: 8),
                   TextCardField(
                     bg: cardBg,
@@ -653,61 +602,133 @@ class _EncryptionPageState extends State<EncryptionPage> {
                     hintText: 'Example: 60123456789',
                     keyboardType: TextInputType.phone,
                   ),
-                  const SizedBox(height: 18),
+                ],
 
-                  if (_outputText.isNotEmpty) ...[
-                    sectionLabel(_outputLabel, textColor),
-                    const SizedBox(height: 8),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: cardBg,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: primaryColor.withOpacity(0.25)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SelectableText(
-                            _outputText,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: textColor,
-                                  fontFamily: 'monospace',
-                                  height: 1.35,
-                                ),
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: OutlinedButton.icon(
-                                  onPressed: _tamperOneChar,
-                                  icon: const Icon(Icons.warning_amber_rounded, size: 18),
-                                  label: const Text('Tamper 1 char'),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: ElevatedButton.icon(
-                                  onPressed: _copyCiphertext,
-                                  icon: const Icon(Icons.content_copy, size: 18),
-                                  label: const Text('Copy'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    foregroundColor: Colors.white,
+                const SizedBox(height: 18),
+                sectionLabel('Receiver key', textColor),
+                const SizedBox(height: 8),
+                TextCardField(
+                  bg: cardBg,
+                  primaryColor: primaryColor,
+                  textColor: textColor,
+                  hintColor: hintColor,
+                  controller: _recipientPublicKeyController,
+                  hintText: 'Select contact to fill public key',
+                  suffixIcon: Icons.key,
+                  onSuffixTap: _selectSavedContact,
+                ),
+                const SizedBox(height: 18),
+                sectionLabel('Message', textColor),
+                const SizedBox(height: 8),
+                TextCardField(
+                  bg: cardBg,
+                  primaryColor: primaryColor,
+                  textColor: textColor,
+                  hintColor: hintColor,
+                  controller: _messageController,
+                  hintText: '🤫 Shhhh... enter your message here...',
+                  maxLines: 10,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    SmallChipButton(
+                      label: 'Paste',
+                      icon: Icons.paste,
+                      bg: cardBg,
+                      fg: textColor,
+                      border: isDark
+                          ? Colors.white.withOpacity(0.14)
+                          : primaryColor.withOpacity(0.25),
+                      onTap: _pasteMessage,
+                    ),
+                    const SizedBox(width: 10),
+                    SmallChipButton(
+                      label: 'Clear',
+                      icon: Icons.clear,
+                      bg: cardBg,
+                      fg: textColor,
+                      border: isDark
+                          ? Colors.white.withOpacity(0.14)
+                          : primaryColor.withOpacity(0.25),
+                      onTap: _clearAll,
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 18),
+
+                if (_outputText.isNotEmpty) ...[
+                  sectionLabel(_outputLabel, textColor),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: cardBg,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: primaryColor.withOpacity(0.25)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SelectableText(
+                          _outputText,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: textColor,
+                                    fontFamily: 'monospace',
+                                    height: 1.35,
+                                  ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _tamperOneChar,
+                                icon: const Icon(Icons.warning_amber_rounded,
+                                    size: 18),
+                                label: const Text('Tamper 1 char'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: textColor,
+                                  backgroundColor: cardBg,
+                                  side: BorderSide(
+                                    color: isDark
+                                        ? Colors.white.withOpacity(0.16)
+                                        : primaryColor.withOpacity(0.35),
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
                               ),
-                            ],
-                          ),
-                        ],
-                      ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: _copyCiphertext,
+                                icon: const Icon(Icons.content_copy, size: 18),
+                                label: const Text('Copy'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: primaryColor,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 18),
-                  ],
-                  const SizedBox(height: 120),
+                  ),
+                  const SizedBox(height: 18),
                 ],
-              ),
+                const SizedBox(height: 120),
+              ],
             ),
           ),
         );
