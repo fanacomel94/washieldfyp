@@ -156,7 +156,7 @@ class EncryptionFlow {
     if (!CryptoManager.validatePublicKey(k)) {
       return const ValidationResult(
         false,
-        'Recipient public key is invalid (must be Base64 of 32 bytes).',
+        'Recepient public key is tampered.',
       );
     }
     return const ValidationResult(true, 'OK');

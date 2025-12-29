@@ -115,7 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                           const SizedBox(height: 14),
                           // About Setting
-                          Container(
+                          /*Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: isDark
@@ -156,10 +156,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ],
                             ),
-                          ),
+                          ),*/
                           const SizedBox(height: 14),
                           // Privacy Setting
-                          Container(
+                          /*Container(
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: isDark
@@ -200,7 +200,7 @@ class _SettingsPageState extends State<SettingsPage> {
                                 ),
                               ],
                             ),
-                          ),
+                          ),*/
                           const SizedBox(height: 30),
                         ],
                       ),

@@ -1,27 +1,59 @@
-HOW TO RUN
+# WA-Shield — Quick Start & Latest Notes ✅
 
-Backend:
-Run backend: npm run dev in your Node project.
-Start WhatsApp client: open browser http://127.0.0.1:3000/1/start, scan QR, wait until “Client is ready!” in backend logs.
+## How to run
 
-Flutter (emulator):
-AppConfig.baseUrl is http://10.0.2.2:3000 (Android emulator loopback to host).
-Run the Flutter app on Android emulator.
-In Encrypt Message screen:
-Enter message + recipient public key.
-Press Encrypt → _outputText becomes ciphertext.
-Enter receiver phone as digits only (e.g. 60123456789).
-Ensure Client ID is 1 (default).
-Press Send via WhatsApp.
-Receiver should see the ciphertext string in WhatsApp.
+### Prerequisites
+- Node.js (>= 14) and npm/yarn
+- Flutter SDK and Android SDK (emulator) or a real Android/iOS device
+- For Windows: use `ipconfig` to find your LAN IP when running on a real device
 
-Flutter (real device):
-On your laptop, run ipconfig and find LAN IP like 192.168.1.10.
-Set AppConfig.baseUrl to http://192.168.1.10:3000. -> config.dart and .env
-Ensure phone and laptop are on the same Wi‑Fi.
-Run Flutter app on the phone and repeat the Encrypt + Send steps.
+### Backend (Node)
+1. Open the Node backend project root (directory containing package.json).
+2. Install dependencies:
+```bash
+npm install
+```
+3. If a `.env.example` exists, copy and edit values:
+```bash
+cp .env.example .env
+# edit .env to set PORT, any keys, etc.
+```
+4. Start dev server:
+```bash
+npm run dev
+```
+5. Start a WhatsApp client and scan the QR: open `http://127.0.0.1:3000/1/start` and wait for "Client is ready!" in backend logs.
 
+### Flutter (emulator)
+1. From the Flutter project root:
+```bash
+flutter pub get
+```
+2. Set backend base URL for Android emulator:
+- `AppConfig.baseUrl = 'http://10.0.2.2:3000'` (emulator → host loopback).
+3. Run the app on an Android emulator:
+```bash
+flutter run
+```
+4. Usage: In Encrypt Message screen enter plaintext + recipient public key → tap **Encrypt** → copy ciphertext → set receiver phone as digits only (e.g. `60123456789`) and ensure Client ID is `1` → **Send via WhatsApp**.
 
-172.20.10.3
-http://172.20.10.3:3000
+### Flutter (real device)
+1. On your laptop run `ipconfig` and note your LAN IP (e.g. `192.168.1.10`).
+2. Set `AppConfig.baseUrl` (or `.env`/config file) to `http://<your-ip>:3000`.
+3. Ensure phone and laptop are on the same Wi‑Fi.
+4. Run the app on your device:
+```bash
+flutter run -d <device-id>
+```
+
+### Common commands
+- Run Flutter tests:
+```bash
+flutter test
+```
+- Troubleshooting:
+  - If backend unreachable, confirm `AppConfig.baseUrl`, firewall, and that backend is running.
+  - If decryption fails, follow the "Debugging tips & AUTH FAILs" section below.
+
+---
 

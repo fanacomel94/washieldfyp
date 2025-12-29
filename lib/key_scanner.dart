@@ -1,6 +1,4 @@
-// ==============================
-// FILE 2: lib/key_scanner.dart
-// ==============================
+
 import 'dart:convert';
 
 import 'package:flutter/material.dart';

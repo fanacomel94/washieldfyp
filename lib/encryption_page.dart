@@ -20,11 +20,13 @@ class _EncryptionPageState extends State<EncryptionPage> {
   final TextEditingController _messageController = TextEditingController();
   final TextEditingController _recipientPublicKeyController =
       TextEditingController();
-  final TextEditingController _receiverPhoneController = TextEditingController();
+  final TextEditingController _receiverPhoneController =
+      TextEditingController();
 
   // ✅ keep controller if you still want, but NOT used for sending anymore
-  final TextEditingController _clientIdController =
-      TextEditingController(text: '1');
+  final TextEditingController _clientIdController = TextEditingController(
+    text: '1',
+  );
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -82,12 +84,16 @@ class _EncryptionPageState extends State<EncryptionPage> {
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showOk(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _pasteMessage() async {
@@ -168,8 +174,9 @@ class _EncryptionPageState extends State<EncryptionPage> {
               return Container(
                 decoration: BoxDecoration(
                   color: surfaceColor,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -188,9 +195,9 @@ class _EncryptionPageState extends State<EncryptionPage> {
                       child: Text(
                         'Select Saved Contact',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: primaryColor,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          color: primaryColor,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     Flexible(
@@ -199,15 +206,17 @@ class _EncryptionPageState extends State<EncryptionPage> {
                         itemCount: contacts.length,
                         itemBuilder: (context, index) {
                           final c = contacts[index];
-                          final displayName =
-                              c.username.isNotEmpty ? c.username : 'Unknown';
-                          final phoneDisplay =
-                              c.phone.isNotEmpty ? c.phone : 'No phone';
+                          final displayName = c.username.isNotEmpty
+                              ? c.username
+                              : 'Unknown';
+                          final phoneDisplay = c.phone.isNotEmpty
+                              ? c.phone
+                              : 'No phone';
                           final badge = c.isExpired
                               ? 'EXPIRED'
                               : c.isActive
-                                  ? 'ACTIVE'
-                                  : 'OLD';
+                              ? 'ACTIVE'
+                              : 'OLD';
 
                           return ListTile(
                             enabled: c.isActive && !c.isExpired,
@@ -274,8 +283,8 @@ class _EncryptionPageState extends State<EncryptionPage> {
                       child: Text(
                         'Only ACTIVE contacts are selectable. If a key is EXPIRED/OLD, re-scan the latest QR.',
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: textColor.withOpacity(0.75),
-                            ),
+                          color: textColor.withOpacity(0.75),
+                        ),
                       ),
                     ),
                   ],
@@ -296,8 +305,9 @@ class _EncryptionPageState extends State<EncryptionPage> {
         setState(() {
           _recipientPublicKeyController.text = selected.publicKeyBase64;
           _receiverPhoneController.text = selected.phone; // ✅ used for send
-          _toDisplayName =
-              selected.username.isNotEmpty ? selected.username : 'Receiver';
+          _toDisplayName = selected.username.isNotEmpty
+              ? selected.username
+              : 'Receiver';
           _toDisplayPhone = selected.phone;
         });
       }
@@ -402,9 +412,9 @@ class _EncryptionPageState extends State<EncryptionPage> {
               title: Text(
                 'Encrypt Message',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      color: textColor,
-                    ),
+                  fontWeight: FontWeight.w800,
+                  color: textColor,
+                ),
               ),
             ),
             body: Center(
@@ -413,7 +423,10 @@ class _EncryptionPageState extends State<EncryptionPage> {
                 children: [
                   const CircularProgressIndicator(),
                   const SizedBox(height: 12),
-                  Text('Preparing backend…', style: TextStyle(color: textColor)),
+                  Text(
+                    'Preparing backend…',
+                    style: TextStyle(color: textColor),
+                  ),
                   if (_baseUrlResolved != null) ...[
                     const SizedBox(height: 6),
                     Text(
@@ -432,19 +445,19 @@ class _EncryptionPageState extends State<EncryptionPage> {
 
         final bool hasContact =
             _recipientPublicKeyController.text.trim().isNotEmpty &&
-                _receiverPhoneController.text.trim().isNotEmpty;
+            _receiverPhoneController.text.trim().isNotEmpty;
 
         final String status = _outputText.trim().isNotEmpty
             ? 'ENCRYPTED'
             : hasContact
-                ? 'READY'
-                : 'MISSING CONTACT';
+            ? 'READY'
+            : 'MISSING CONTACT';
 
         final Color statusColor = _outputText.trim().isNotEmpty
             ? primaryColor
             : hasContact
-                ? primaryColor.withOpacity(0.85)
-                : cs.error;
+            ? primaryColor.withOpacity(0.85)
+            : cs.error;
 
         // ✅ show phone field ONLY when no contact selected (your request)
         final bool contactSelected = hasContact;
@@ -465,17 +478,19 @@ class _EncryptionPageState extends State<EncryptionPage> {
             title: Text(
               'Encrypt',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: textColor,
-                  ),
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
             ),
             actions: [
               Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: Center(
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(999),
                       color: statusColor.withOpacity(0.14),
@@ -674,21 +689,23 @@ class _EncryptionPageState extends State<EncryptionPage> {
                       children: [
                         SelectableText(
                           _outputText,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: textColor,
-                                    fontFamily: 'monospace',
-                                    height: 1.35,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: textColor,
+                                fontFamily: 'monospace',
+                                height: 1.35,
+                              ),
                         ),
                         const SizedBox(height: 12),
                         Row(
                           children: [
-                            Expanded(
+                            /*Expanded(
                               child: OutlinedButton.icon(
                                 onPressed: _tamperOneChar,
-                                icon: const Icon(Icons.warning_amber_rounded,
-                                    size: 18),
+                                icon: const Icon(
+                                  Icons.warning_amber_rounded,
+                                  size: 18,
+                                ),
                                 label: const Text('Tamper 1 char'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: textColor,
@@ -703,7 +720,7 @@ class _EncryptionPageState extends State<EncryptionPage> {
                                   ),
                                 ),
                               ),
-                            ),
+                            ),*/
                             const SizedBox(width: 10),
                             Expanded(
                               child: ElevatedButton.icon(

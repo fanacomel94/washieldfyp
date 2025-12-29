@@ -516,9 +516,30 @@ class _InboxPageState extends State<InboxPage> {
                               ],
                             ],
                           ),
-                          trailing: Icon(
-                            Icons.chevron_right,
-                            color: primaryColor,
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red.withOpacity(0.7),
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _messages.removeAt(index);
+                                  });
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Message deleted'),
+                                      duration: Duration(milliseconds: 1500),
+                                    ),
+                                  );
+                                },
+                                tooltip: 'Delete message',
+                              ),
+                              Icon(Icons.chevron_right, color: primaryColor),
+                            ],
                           ),
                           onTap: () => _openDecryptionPage(message),
                         ),

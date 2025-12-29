@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 Widget sectionLabel(String text, Color textColor) {
   return Text(
     text,
-    style: TextStyle(
-      color: textColor,
-      fontWeight: FontWeight.w800,
-    ),
+    style: TextStyle(color: textColor, fontWeight: FontWeight.w800),
   );
 }
 
@@ -220,10 +217,7 @@ class SmallChipButton extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               label,
-              style: TextStyle(
-                color: fg,
-                fontWeight: FontWeight.w800,
-              ),
+              style: TextStyle(color: fg, fontWeight: FontWeight.w800),
             ),
           ],
         ),

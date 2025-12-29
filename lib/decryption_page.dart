@@ -156,9 +156,11 @@ class _DecryptionPageState extends State<DecryptionPage> {
     if (iv.isEmpty || ct.isEmpty || tag.isEmpty) {
       return 'Cipher payload missing iv/ciphertext/tag.';
     }
-    if (!_isBase64OfLen(iv, 12)) return 'Invalid IV (expected base64 12 bytes).';
+    if (!_isBase64OfLen(iv, 12))
+      return 'Invalid IV (expected base64 12 bytes).';
     if (!_isProbablyBase64(ct)) return 'Invalid ciphertext (not base64).';
-    if (!_isBase64OfLen(tag, 16)) return 'Invalid tag (expected base64 16 bytes).';
+    if (!_isBase64OfLen(tag, 16))
+      return 'Invalid tag (expected base64 16 bytes).';
     return null;
   }
 
@@ -212,7 +214,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
       _myPrivateKeyBase64 = (stored ?? '').trim();
 
       if (_myPrivateKeyBase64.isEmpty && mounted) {
-        _showError('Please generate a key pair first in the Key Generation page');
+        _showError(
+          'Please generate a key pair first in the Key Generation page',
+        );
       }
       if (mounted) setState(() {});
     } catch (e) {
@@ -232,8 +236,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
 
     try {
       final all = await _storage.readAll();
-      final entries =
-          all.entries.where((e) => e.key.startsWith('wa_shield_contact_')).toList();
+      final entries = all.entries
+          .where((e) => e.key.startsWith('wa_shield_contact_'))
+          .toList();
 
       Map<String, dynamic>? best;
       DateTime bestSavedAt = DateTime.fromMillisecondsSinceEpoch(0);
@@ -249,7 +254,8 @@ class _DecryptionPageState extends State<DecryptionPage> {
           final storedDigits = _digitsOnly(storedPhone);
           if (storedDigits.isEmpty) continue;
 
-          final match = storedDigits == digits ||
+          final match =
+              storedDigits == digits ||
               digits.contains(storedDigits) ||
               storedDigits.contains(digits);
           if (!match) continue;
@@ -273,16 +279,19 @@ class _DecryptionPageState extends State<DecryptionPage> {
           ? Map<String, dynamic>.from(best['payload'])
           : <String, dynamic>{};
 
-      final username = (best['username'] ?? payload['u'] ?? '').toString().trim();
-      final phone = (best['phone'] ?? payload['p'] ?? '').toString().trim();
-
-      final pub = (payload['x'] ??
-              payload['x25519PublicKey'] ??
-              best['x25519PublicKey'] ??
-              best['publicKey'] ??
-              '')
+      final username = (best['username'] ?? payload['u'] ?? '')
           .toString()
           .trim();
+      final phone = (best['phone'] ?? payload['p'] ?? '').toString().trim();
+
+      final pub =
+          (payload['x'] ??
+                  payload['x25519PublicKey'] ??
+                  best['x25519PublicKey'] ??
+                  best['publicKey'] ??
+                  '')
+              .toString()
+              .trim();
 
       final fp = (best['fingerprint'] ?? payload['fp'] ?? '').toString().trim();
 
@@ -290,8 +299,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
         setState(() {
           _senderPubController.text = pub;
           _senderName = username.isNotEmpty ? username : _senderName;
-          _senderPhone =
-              _digitsOnly(phone).isNotEmpty ? _digitsOnly(phone) : _senderPhone;
+          _senderPhone = _digitsOnly(phone).isNotEmpty
+              ? _digitsOnly(phone)
+              : _senderPhone;
           _senderFingerprint = fp;
           _senderKeyActive = true;
           _senderKeyExpired = false;
@@ -359,7 +369,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
         return;
       }
       if (!_isBase64OfLen(senderPub, 32)) {
-        _showError('Sender public key invalid. Expected Base64 of 32 bytes (X25519).');
+        _showError(
+          'Sender public key iis tampered.',
+        );
         return;
       }
 
@@ -372,7 +384,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
       final parsed = _parseCipherPayload(cipher);
       if (parsed == null) {
         _showError(
-          'Ciphertext format invalid.\nExpected Base64(JSON) with fields: {v, iv, ciphertext, tag}.',
+          'Ciphertext message is tampered.',
         );
         return;
       }
@@ -409,7 +421,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
       });
     } catch (e) {
       final msg = e.toString();
-      if (msg.contains('AUTH FAIL')) {
+      if (msg.contains('AUTH FAIL')) { //ciphertext tampered
         _showError(
           'AUTH FAIL (tampered / wrong key / wrong account).\n'
           '• Make sure you are using the sender account public key\n'
@@ -437,16 +449,16 @@ class _DecryptionPageState extends State<DecryptionPage> {
         final hintColor = isDark ? Colors.white60 : Colors.black45;
 
         final statusText = (_senderPubController.text.trim().isEmpty)
-            ? 'UNKNOWN'
+            ? 'UNKNOWN' // no key provided
             : (_senderKeyExpired || !_senderKeyActive)
-                ? 'OLD/EXPIRED'
-                : 'VERIFIED';
+            ? 'UNVERIFIED' // unverified (no phone match -> no public key match)
+            : 'VERIFIED'; // verified
 
         final statusColor = (_senderPubController.text.trim().isEmpty)
             ? Colors.grey
             : (_senderKeyExpired || !_senderKeyActive)
-                ? cs.error
-                : primaryColor;
+            ? cs.error
+            : primaryColor;
 
         return Scaffold(
           backgroundColor: pageBg,
@@ -467,9 +479,9 @@ class _DecryptionPageState extends State<DecryptionPage> {
             title: Text(
               'Decrypt',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: textColor,
-                  ),
+                fontWeight: FontWeight.w800,
+                color: textColor,
+              ),
             ),
 
             // ✅ inbox button (top-right) in circle
@@ -683,12 +695,12 @@ class _DecryptionPageState extends State<DecryptionPage> {
                       children: [
                         SelectableText(
                           _outputText,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: textColor,
-                                    fontFamily: 'monospace',
-                                    height: 1.35,
-                                  ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: textColor,
+                                fontFamily: 'monospace',
+                                height: 1.35,
+                              ),
                         ),
                         const SizedBox(height: 12),
                         Align(
@@ -766,10 +778,7 @@ class _DecryptionPageState extends State<DecryptionPage> {
 
 // ✅ Reusable circle button for AppBar (uses theme colors)
 class _CircleTopButton extends StatelessWidget {
-  const _CircleTopButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _CircleTopButton({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback onTap;
