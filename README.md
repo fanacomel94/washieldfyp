@@ -4,7 +4,7 @@
 
 ### Prerequisites
 - Node.js (>= 14) and npm/yarn
-- Flutter SDK and Android SDK (emulator) or a real Android/iOS device
+- Flutter SDK and Android SDK (emulator) or a real Android device
 - For Windows: use `ipconfig` to find your LAN IP when running on a real device
 
 ### Backend (Node)
