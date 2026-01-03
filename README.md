@@ -1,4 +1,4 @@
-# WA-Shield — Quick Start & Latest Notes ✅
+# WAShield — Quick Start
 
 ## How to run
 
